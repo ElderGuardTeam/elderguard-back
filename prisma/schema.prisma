@@ -13,3 +13,87 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Elderly {
+  id          String           @id @default(uuid())
+  cpf         String           @unique
+  name        String
+  dateOfBirth DateTime
+  phone       String
+  contacts    ElderlyContact[]
+  address     Address          @relation(fields: [addressId], references: [id])
+  addressId   String
+  sex         String
+  weight      Float
+  height      Float
+  imc         Float
+  user        User             @relation(fields: [userId], references: [id])
+  userId      String           @unique
+  created     DateTime         @default(now())
+  updated     DateTime         @updatedAt
+}
+
+model Address {
+  id           String    @id @default(uuid())
+  street       String
+  number       String
+  complement   String
+  neighborhood String
+  city         String
+  state        String
+  zipCode      String
+  Elderly      Elderly[]
+  Contact      Contact[]
+  created      DateTime  @default(now())
+  updated      DateTime  @updatedAt
+}
+
+model Contact {
+  id        String           @id @default(uuid())
+  name      String
+  phone     String
+  email     String
+  cpf       String           @unique
+  address   Address          @relation(fields: [addressId], references: [id])
+  addressId String
+  elderly   ElderlyContact[]
+  created   DateTime         @default(now())
+  updated   DateTime         @updatedAt
+}
+
+model ElderlyContact {
+  elderlyId String
+  contactId String
+  elderly   Elderly @relation(fields: [elderlyId], references: [id])
+  contact   Contact @relation(fields: [contactId], references: [id])
+
+  @@id([elderlyId, contactId])
+}
+
+model Professional {
+  id      String   @id @default(uuid())
+  cpf     String   @unique
+  name    String
+  phone   String
+  email   String
+  user    User     @relation(fields: [userId], references: [id])
+  userId  String   @unique
+  created DateTime @default(now())
+  updated DateTime @updatedAt
+}
+
+model User {
+  id           String        @id @default(uuid())
+  login        String        @unique
+  password     String
+  userType     UserType      @default(USER)
+  created      DateTime      @default(now())
+  updated      DateTime      @updatedAt
+  elderly      Elderly?
+  professional Professional?
+}
+
+enum UserType {
+  ADMIN
+  USER
+  TECH_PROFESSIONAL
+}
