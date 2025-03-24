@@ -1,0 +1,14 @@
+POST http://localhost:3000/elderly
+Content-Type: application/json
+
+{
+  "cpf": "12345678901",
+  "name": "João Silva",
+  "dateOfBirth": "1950-05-15T00:00:00.000Z",
+  "phone": "11999999999",
+  "addressId": "endereco-uuid",
+  "sex": "M",
+  "weight": 70.5,
+  "height": 1.75,
+  "imc": 23.1
+}
