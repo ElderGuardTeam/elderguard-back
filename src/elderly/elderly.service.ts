@@ -18,17 +18,14 @@ export class ElderlyService {
   ) {}
 
   async create(data: CreateElderlyDto) {
-    // Criar endereço
     const address = await this.addressService.create(data.address);
 
-    // Criar usuário para o idoso (CPF como login, data de nascimento como senha)
     const birthDate = new Date(data.dateOfBirth);
 
     if (isNaN(birthDate.getTime())) {
       throw new Error('Data de nascimento inválida');
     }
 
-    // Criar senha baseada na data de nascimento (DDMMAAAA)
     const password = birthDate
       .toISOString()
       .split('T')[0]
@@ -43,7 +40,6 @@ export class ElderlyService {
       userType: UserType.USER,
     });
 
-    // Criar idoso no banco
     const elderly = await this.prisma.elderly.create({
       data: {
         cpf: data.cpf,
@@ -59,8 +55,10 @@ export class ElderlyService {
       },
     });
 
-    // Criar contatos e associá-los ao idoso
     for (const contact of data.contacts) {
+      if (!contact.address) {
+        throw new Error('Contact address is required');
+      }
       const address = await this.addressService.create(contact.address);
       const newContact = await this.contactService.create({
         ...contact,
@@ -95,63 +93,64 @@ export class ElderlyService {
     });
 
     if (!elderly) {
-      throw new NotFoundException(`Elderly with ID ${id} not found`);
+      throw new NotFoundException(`Idoso com o ID ${id} não encontrado.`);
     }
 
     return elderly;
   }
 
   async update(id: string, data: UpdateElderlyDto) {
-    const elderly = await this.findOne(id);
+    const existingElderly = await this.prisma.elderly.findUnique({
+      where: { id },
+      include: { contacts: true },
+    });
 
-    // Atualiza endereço
-    if (data.address) {
-      await this.addressService.update(elderly.addressId, data.address);
+    if (!existingElderly) {
+      throw new NotFoundException(`Idoso com ID ${id} não encontrado.`);
     }
 
-    // Atualiza contatos
-    if (data.contacts?.length) {
-      await this.prisma.elderlyContact.deleteMany({ where: { elderlyId: id } });
-
-      // for (const contact of data.contacts) {
-      //   const updatedContact =
-      //     await this.contactService.createOrUpdate(contact);
-      //   await this.prisma.elderlyContact.create({
-      //     data: { elderlyId: id, contactId: updatedContact.id },
-      //   });
-      // }
+    if (data.contacts && data.contacts.length > 0) {
+      for (const contact of data.contacts) {
+        if (!contact.cpf) {
+          throw new Error('CPF do contato é obrigatório');
+        }
+        await this.contactService.update(contact.cpf, contact);
+      }
     }
 
     return this.prisma.elderly.update({
       where: { id },
       data: {
         name: data.name,
-        dateOfBirth: data.dateOfBirth,
         phone: data.phone,
         sex: data.sex,
         weight: data.weight,
         height: data.height,
         imc: data.imc,
+        address: {
+          update: {
+            street: data.address?.street,
+            number: data.address?.number,
+            complement: data.address?.complement,
+            neighborhood: data.address?.neighborhood,
+            city: data.address?.city,
+            state: data.address?.state,
+            zipCode: data.address?.zipCode,
+          },
+        },
       },
-      include: {
-        address: true,
-        contacts: { include: { contact: true } },
-        user: true,
-      },
+      include: { contacts: true },
     });
   }
 
   async delete(id: string) {
     const elderly = await this.findOne(id);
 
-    // Excluir contatos associados
     await this.prisma.elderlyContact.deleteMany({ where: { elderlyId: id } });
 
-    // Excluir usuário associado
-    await this.userService.delete(elderly.userId);
-
-    // Excluir idoso
     await this.prisma.elderly.delete({ where: { id } });
+
+    await this.userService.delete(elderly.userId);
 
     return { message: 'Elderly deleted successfully' };
   }

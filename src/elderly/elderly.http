@@ -38,3 +38,19 @@ Content-Type: application/json
   ]
 }
 
+###
+GET http://localhost:3000/elderly
+
+###
+PATCH http://localhost:3000/elderly/db1bef58-d077-4ac4-973d-a50a717cfc9c
+Content-Type: application/json
+
+{
+  
+  "name": "Geovanni Magnani"
+  
+  
+}
+
+###
+DELETE http://localhost:3000/elderly/db1bef58-d077-4ac4-973d-a50a717cfc9c
