@@ -37,6 +37,6 @@ export class ElderlyController {
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.elderlyService.remove(id);
+    return this.elderlyService.delete(id);
   }
 }

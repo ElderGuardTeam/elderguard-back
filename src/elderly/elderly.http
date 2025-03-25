@@ -2,13 +2,39 @@ POST http://localhost:3000/elderly
 Content-Type: application/json
 
 {
-  "cpf": "12345678901",
-  "name": "João Silva",
-  "dateOfBirth": "1950-05-15T00:00:00.000Z",
-  "phone": "11999999999",
-  "addressId": "endereco-uuid",
+  "cpf": "08223712946",
+  "name": "João da Silva",
+  "dateOfBirth": "1945-06-15T00:00:00.000Z",
+  "phone": "11987654321",
   "sex": "M",
   "weight": 70.5,
   "height": 1.75,
-  "imc": 23.1
+  "imc": 23.0,
+  "address": {
+    "street": "Rua das Flores",
+    "number": "123",
+    "complement": "Apto 202",
+    "neighborhood": "Centro",
+    "city": "São Paulo",
+    "state": "SP",
+    "zipCode": "01010000"
+  },
+  "contacts": [
+    {
+      "name": "Maria da Silva",
+      "phone": "11999999999",
+      "email": "maria@example.com",
+      "cpf": "98765432100",
+      "address": {
+        "street": "Rua das Palmeiras",
+        "number": "456",
+        "complement": "Casa",
+        "neighborhood": "Jardins",
+        "city": "São Paulo",
+        "state": "SP",
+        "zipCode": "02020000"
+      }
+    }
+  ]
 }
+
