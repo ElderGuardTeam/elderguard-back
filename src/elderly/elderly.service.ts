@@ -72,13 +72,14 @@ export class ElderlyService {
     return { elderly, user };
   }
 
-  async findAll() {
+  async findAll(search?: string) {
     return this.prisma.elderly.findMany({
-      include: {
-        address: true,
-        contacts: { include: { contact: true } },
-        user: true,
-      },
+      where: search
+        ? {
+            OR: [{ name: { contains: search } }, { cpf: { contains: search } }],
+          }
+        : undefined,
+      include: { user: true, contacts: true, address: true },
     });
   }
 

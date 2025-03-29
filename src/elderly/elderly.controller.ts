@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { ElderlyService } from './elderly.service';
 import { CreateElderlyDto } from './dto/create-elderly.dto';
@@ -21,8 +22,8 @@ export class ElderlyController {
   }
 
   @Get()
-  findAll() {
-    return this.elderlyService.findAll();
+  async findAll(@Query('search') search?: string) {
+    return this.elderlyService.findAll(search);
   }
 
   @Get(':id')
