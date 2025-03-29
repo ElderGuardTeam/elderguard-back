@@ -6,9 +6,10 @@ import { ElderlyModule } from './elderly/elderly.module';
 import { ContactModule } from './contact/contact.module';
 import { AddressModule } from './address/address.module';
 import { UserModule } from './user/user.module';
+import { ProfessionalModule } from './professional/professional.module';
 
 @Module({
-  imports: [DatabaseModule, ElderlyModule, ContactModule, AddressModule, UserModule],
+  imports: [DatabaseModule, ElderlyModule, ContactModule, AddressModule, UserModule, ProfessionalModule],
   controllers: [AppController],
   providers: [AppService],
 })
