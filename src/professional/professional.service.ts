@@ -64,8 +64,10 @@ export class ProfessionalService {
       throw new NotFoundException('Profissional não encontrado');
     }
 
+    await this.prisma.professional.delete({ where: { id } });
+
     await this.prisma.user.delete({ where: { id: professional.userId } });
 
-    return this.prisma.professional.delete({ where: { id } });
+    return { message: 'Professional deleted successfully' };
   }
 }
