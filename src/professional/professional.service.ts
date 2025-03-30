@@ -3,6 +3,7 @@ import { PrismaService } from 'src/database/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { CreateProfessionalDto } from './dto/create-professional.dto';
 import { UpdateProfessionalDto } from './dto/update-professional.dto';
+import { UserType } from '@prisma/client';
 
 @Injectable()
 export class ProfessionalService {
@@ -64,8 +65,10 @@ export class ProfessionalService {
       throw new NotFoundException('Profissional não encontrado');
     }
 
+    await this.prisma.professional.delete({ where: { id } });
+
     await this.prisma.user.delete({ where: { id: professional.userId } });
 
-    return this.prisma.professional.delete({ where: { id } });
+    return { message: 'Professional deleted successfully' };
   }
 }
