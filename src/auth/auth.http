@@ -1,0 +1,22 @@
+
+
+ http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+    "login": "12345678900",
+    "password": "19450615"
+}
+
+###
+GET http://localhost:3000/professional
+Content-Type: application/json
+
+{
+    "cpf": "08223712946",
+    "name": "Geovanni Magnani",
+    "phone": "11987654321",
+    "password": "409834",
+    "email": "magnanigeovanni@gmail.com",
+    "userType": "ADMIN"
+}

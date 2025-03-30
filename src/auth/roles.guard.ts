@@ -1,22 +1,28 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { UserType } from '@prisma/client';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private allowedRoles: string[]) {}
+  constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest();
-    const user = request.user;
+    const requiredRoles = this.reflector.get<UserType[]>(
+      'roles',
+      context.getHandler(),
+    );
+    if (!requiredRoles) return true; // Se não tiver restrição, libera acesso.
 
-    if (!user || !this.allowedRoles.includes(user.userType)) {
-      throw new ForbiddenException('Acesso negado');
+    const request = context.switchToHttp().getRequest();
+    const user = request.user; // O usuário autenticado
+
+    if (!user || !requiredRoles.includes(user.userType)) {
+      throw new ForbiddenException('Acesso negado.');
     }
 
     return true;
