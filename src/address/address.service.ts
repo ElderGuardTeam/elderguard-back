@@ -8,12 +8,8 @@ export class AddressService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: CreateAddressDto) {
-    return this.prisma.address.create({
-      data: {
-        ...data,
-        complement: data.complement ?? '',
-      },
-    });
+    console.log('Dados recebidos para criar endereço:', data); // Debug
+    return this.prisma.address.create({ data });
   }
 
   async update(id: string, data: UpdateAddressDto) {

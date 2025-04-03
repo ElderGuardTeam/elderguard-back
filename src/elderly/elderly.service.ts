@@ -22,74 +22,91 @@ export class ElderlyService {
   ) {}
 
   async create(data: CreateElderlyDto) {
-    return this.prisma.$transaction(
-      async (tx) => {
-        const sanitizedData = {
-          ...data,
-          cpf: data.cpf.replace(/\D/g, ''),
-          phone: data.phone.replace(/\D/g, ''), // Remove qualquer caractere que não seja número
-        };
-        // Verifica se o CPF já está cadastrado para evitar erro
-        const existingUser = await tx.user.findUnique({
-          where: { login: sanitizedData.cpf },
-        });
+    const sanitizedData = {
+      ...data,
+      cpf: data.cpf.replace(/\D/g, ''), // Remove caracteres não numéricos
+      phone: data.phone.replace(/\D/g, ''),
+    };
 
-        if (existingUser) {
-          throw new BadRequestException('Este CPF já está cadastrado.');
+    // 🔹 Criar endereço do idoso *fora* da transação
+    const address = await this.addressService.create(sanitizedData.address);
+
+    const birthDate = new Date(sanitizedData.dateOfBirth);
+    if (isNaN(birthDate.getTime())) {
+      throw new Error('Data de nascimento inválida');
+    }
+
+    // 🔹 Criar endereços dos contatos *antes* da transação
+    const contactsWithAddresses = await Promise.all(
+      sanitizedData.contacts.map(async (contact) => {
+        if (!contact.address) {
+          throw new Error('Contact address is required');
         }
-        const address = await this.addressService.create(sanitizedData.address);
-
-        const birthDate = new Date(sanitizedData.dateOfBirth);
-
-        if (isNaN(birthDate.getTime())) {
-          throw new Error('Data de nascimento inválida');
-        }
-
-        const hashedPassword = await bcrypt.hash(sanitizedData.cpf, 10);
-
-        // Cria o usuário antes do idoso
-        const user = await tx.user.create({
-          data: {
-            login: sanitizedData.cpf,
-            name: sanitizedData.name,
-            email: sanitizedData.email,
-            password: hashedPassword,
-            userType: UserType.USER,
-          },
-        });
-        const elderly = await tx.elderly.create({
-          data: {
-            cpf: sanitizedData.cpf,
-            name: sanitizedData.name,
-            dateOfBirth: birthDate,
-            phone: sanitizedData.phone,
-            sex: sanitizedData.sex,
-            weight: sanitizedData.weight,
-            height: sanitizedData.height,
-            imc: sanitizedData.imc,
-            addressId: address.id,
-            userId: user.id,
-          },
-        });
-
-        for (const contact of sanitizedData.contacts) {
-          if (!contact.address) {
-            throw new Error('Contact address is required');
-          }
-          const address = await this.addressService.create(contact.address);
-          const newContact = await this.contactService.create({
-            ...contact,
-            addressId: address.id,
-          });
-          await this.prisma.elderlyContact.create({
-            data: { elderlyId: elderly.id, contactId: newContact.id },
-          });
-        }
-
-        return { elderly, user };
-      },
-      { timeout: 10000 },
+        const contactAddress = await this.addressService.create(
+          contact.address,
+        );
+        return { ...contact, addressId: contactAddress.id };
+      }),
     );
+
+    return this.prisma.$transaction(async (tx) => {
+      // 🔹 Verificar se o CPF já está cadastrado
+      const existingUser = await tx.user.findUnique({
+        where: { login: sanitizedData.cpf },
+      });
+      if (existingUser) {
+        throw new BadRequestException('Este CPF já está cadastrado.');
+      }
+
+      const hashedPassword = await bcrypt.hash(sanitizedData.cpf, 10);
+
+      // 🔹 Criar usuário e idoso juntos para reduzir queries
+      const user = await tx.user.create({
+        data: {
+          login: sanitizedData.cpf,
+          name: sanitizedData.name,
+          email: sanitizedData.email,
+          password: hashedPassword,
+          userType: UserType.USER,
+        },
+      });
+
+      const elderly = await tx.elderly.create({
+        data: {
+          cpf: sanitizedData.cpf,
+          name: sanitizedData.name,
+          dateOfBirth: birthDate,
+          phone: sanitizedData.phone,
+          sex: sanitizedData.sex,
+          weight: sanitizedData.weight,
+          height: sanitizedData.height,
+          imc: sanitizedData.imc,
+          addressId: address.id,
+          userId: user.id,
+        },
+      });
+
+      // 🔹 Criar contatos um por um dentro da transação
+      for (const contact of contactsWithAddresses) {
+        // 🔹 Verifica se o contato já existe
+        let newContact = await tx.contact.findUnique({
+          where: { cpf: contact.cpf },
+        });
+
+        if (!newContact) {
+          newContact = await tx.contact.create({
+            data: { ...contact, addressId: contact.addressId, address: undefined },
+          });
+        }
+
+        // 🔹 Associar contato ao idoso
+        await tx.elderlyContact.create({
+          data: { elderlyId: elderly.id, contactId: newContact.id },
+        });
+      }
+
+      return { elderly, user };
+    });
   }
 
   async findAll(search?: string) {

@@ -52,6 +52,8 @@ function main() {
                                 login: 'admin',
                                 password: hashedPassword, // Armazena a senha com hash
                                 userType: client_1.UserType.ADMIN,
+                                name: 'Admin',
+                                mustChangePassword: false,
                             },
                         })];
                 case 2:

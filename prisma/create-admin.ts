@@ -11,6 +11,8 @@ async function main() {
       login: 'admin',
       password: hashedPassword, // Armazena a senha com hash
       userType: UserType.ADMIN,
+      name: 'Admin',
+      mustChangePassword: false,
     },
   });
 
