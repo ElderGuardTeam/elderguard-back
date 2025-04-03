@@ -84,10 +84,11 @@ model Professional {
 model User {
   id               String        @id @default(uuid())
   login            String        @unique
+  name             String?
   password         String
   userType         UserType      @default(USER)
-  resetToken       String? 
-  resetTokenExpiry DateTime? 
+  resetToken       String?
+  resetTokenExpiry DateTime?
   created          DateTime      @default(now())
   updated          DateTime      @updatedAt
   elderly          Elderly?

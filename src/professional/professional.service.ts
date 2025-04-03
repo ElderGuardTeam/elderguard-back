@@ -3,7 +3,6 @@ import { PrismaService } from 'src/database/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { CreateProfessionalDto } from './dto/create-professional.dto';
 import { UpdateProfessionalDto } from './dto/update-professional.dto';
-import { UserType } from '@prisma/client';
 
 @Injectable()
 export class ProfessionalService {
@@ -21,6 +20,7 @@ export class ProfessionalService {
         user: {
           create: {
             login: data.cpf,
+            name: data.name,
             password: hashedPassword,
             userType: data.userType,
           },

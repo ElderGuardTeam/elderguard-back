@@ -51,6 +51,7 @@ export class ElderlyService {
       const user = await tx.user.create({
         data: {
           login: data.cpf,
+          name: data.name,
           password: hashedPassword,
           userType: UserType.USER,
         },

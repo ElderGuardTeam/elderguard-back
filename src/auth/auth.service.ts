@@ -34,6 +34,7 @@ export class AuthService {
       sub: user.id,
       login: user.login,
       userType: user.userType,
+      name: user.name,
     };
     console.log('Gerando token para:', payload);
 
