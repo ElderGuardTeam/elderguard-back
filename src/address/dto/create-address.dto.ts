@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import { IsString } from 'class-validator';
 
 export class CreateAddressDto {
@@ -20,5 +21,6 @@ export class CreateAddressDto {
   state: string;
 
   @IsString()
+  @Transform(({ value }) => value.replace(/\D/g, ''))
   zipCode: string;
 }

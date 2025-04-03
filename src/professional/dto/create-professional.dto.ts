@@ -1,9 +1,11 @@
 import { UserType } from '@prisma/client';
+import { Transform } from 'class-transformer';
 import { IsEmail, IsEnum, IsNotEmpty, IsString } from 'class-validator';
 
 export class CreateProfessionalDto {
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }) => value.replace(/\D/g, ''))
   cpf: string;
 
   @IsString()
@@ -12,6 +14,7 @@ export class CreateProfessionalDto {
 
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }) => value.replace(/\D/g, ''))
   phone: string;
 
   @IsEmail()

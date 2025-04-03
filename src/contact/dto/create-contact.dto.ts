@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsString, IsEmail, ValidateNested } from 'class-validator';
 import { CreateAddressDto } from 'src/address/dto/create-address.dto';
 
@@ -7,12 +7,14 @@ export class CreateContactDto {
   name: string;
 
   @IsString()
+  @Transform(({ value }) => value.replace(/\D/g, ''))
   phone: string;
 
   @IsEmail()
   email: string;
 
   @IsString()
+  @Transform(({ value }) => value.replace(/\D/g, ''))
   cpf: string;
 
   @IsString()
