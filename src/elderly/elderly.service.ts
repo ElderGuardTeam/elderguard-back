@@ -24,50 +24,55 @@ export class ElderlyService {
   async create(data: CreateElderlyDto) {
     return this.prisma.$transaction(
       async (tx) => {
+        const sanitizedData = {
+          ...data,
+          cpf: data.cpf.replace(/\D/g, ''),
+          phone: data.phone.replace(/\D/g, ''), // Remove qualquer caractere que não seja número
+        };
         // Verifica se o CPF já está cadastrado para evitar erro
         const existingUser = await tx.user.findUnique({
-          where: { login: data.cpf },
+          where: { login: sanitizedData.cpf },
         });
 
         if (existingUser) {
           throw new BadRequestException('Este CPF já está cadastrado.');
         }
-        const address = await this.addressService.create(data.address);
+        const address = await this.addressService.create(sanitizedData.address);
 
-        const birthDate = new Date(data.dateOfBirth);
+        const birthDate = new Date(sanitizedData.dateOfBirth);
 
         if (isNaN(birthDate.getTime())) {
           throw new Error('Data de nascimento inválida');
         }
 
-        const hashedPassword = await bcrypt.hash(data.cpf, 10);
+        const hashedPassword = await bcrypt.hash(sanitizedData.cpf, 10);
 
         // Cria o usuário antes do idoso
         const user = await tx.user.create({
           data: {
-            login: data.cpf,
-            name: data.name,
-            email: data.email,
+            login: sanitizedData.cpf,
+            name: sanitizedData.name,
+            email: sanitizedData.email,
             password: hashedPassword,
             userType: UserType.USER,
           },
         });
         const elderly = await tx.elderly.create({
           data: {
-            cpf: data.cpf,
-            name: data.name,
+            cpf: sanitizedData.cpf,
+            name: sanitizedData.name,
             dateOfBirth: birthDate,
-            phone: data.phone,
-            sex: data.sex,
-            weight: data.weight,
-            height: data.height,
-            imc: data.imc,
+            phone: sanitizedData.phone,
+            sex: sanitizedData.sex,
+            weight: sanitizedData.weight,
+            height: sanitizedData.height,
+            imc: sanitizedData.imc,
             addressId: address.id,
             userId: user.id,
           },
         });
 
-        for (const contact of data.contacts) {
+        for (const contact of sanitizedData.contacts) {
           if (!contact.address) {
             throw new Error('Contact address is required');
           }
@@ -149,7 +154,7 @@ export class ElderlyService {
             number: data.address?.number,
             complement: data.address?.complement,
             neighborhood: data.address?.neighborhood,
-            city: data.address?.city,
+            city: data.address?.city?.replace(/\D/g, '') ?? '',
             state: data.address?.state,
             zipCode: data.address?.zipCode,
           },

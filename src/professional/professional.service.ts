@@ -16,32 +16,37 @@ export class ProfessionalService {
   async create(data: CreateProfessionalDto) {
     return this.prisma.$transaction(async (tx) => {
       // Verifica se o CPF já está cadastrado para evitar erro
+      const sanitizedData = {
+        ...data,
+        cpf: data.cpf.replace(/\D/g, ''),
+        phone: data.phone.replace(/\D/g, ''), // Remove qualquer caractere que não seja número
+      };
       const existingUser = await tx.user.findUnique({
-        where: { login: data.cpf },
+        where: { login: sanitizedData.cpf },
       });
 
       if (existingUser) {
         throw new BadRequestException('Este CPF já está cadastrado.');
       }
 
-      const hashedPassword = await bcrypt.hash(data.cpf, 10);
+      const hashedPassword = await bcrypt.hash(sanitizedData.cpf, 10);
 
       // Cria o usuário antes do idoso
       const user = await tx.user.create({
         data: {
-          login: data.cpf,
-          email: data.email,
-          name: data.name,
+          login: sanitizedData.cpf,
+          email: sanitizedData.email,
+          name: sanitizedData.name,
           password: hashedPassword,
           userType: UserType.TECH_PROFESSIONAL,
         },
       });
       const professional = await tx.professional.create({
         data: {
-          cpf: data.cpf,
-          name: data.name,
-          email: data.email,
-          phone: data.phone,
+          cpf: sanitizedData.cpf,
+          name: sanitizedData.name,
+          email: sanitizedData.email,
+          phone: sanitizedData.phone,
           userId: user.id,
         },
       });
