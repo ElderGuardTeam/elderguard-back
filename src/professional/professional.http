@@ -1,0 +1,30 @@
+POST http://localhost:3000/professional
+Content-Type: application/json
+
+{
+  "cpf": "08223712946",
+  "name": "Geovanni Magnani",
+  "phone": "10987975897",
+  "email": "magnanigeovanni@gmail.com",
+  "password": "409834"
+  
+}
+
+###
+GET http://localhost:3000/professional
+###
+GET http://localhost:3000/professional/3d5e4c8f-2ba7-4905-ab54-2160dca139df
+
+###
+PATCH http://localhost:3000/professional/3d5e4c8f-2ba7-4905-ab54-2160dca139df
+Content-Type: application/json
+
+{
+  
+  "name": "Geovanni Z Magnani"
+  
+  
+}
+
+###
+DELETE http://localhost:3000/professional/3d5e4c8f-2ba7-4905-ab54-2160dca139df
