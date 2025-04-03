@@ -20,6 +20,7 @@ import { Roles } from 'src/auth/roles.decorator';
 import { UserType } from '@prisma/client';
 @Controller('elderly')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
+// @UseGuards(JwtAuthGuard, RolesGuard)
 export class ElderlyController {
   constructor(private readonly elderlyService: ElderlyService) {}
 
@@ -31,6 +32,7 @@ export class ElderlyController {
 
   @Get()
   @Roles(UserType.ADMIN, UserType.TECH_PROFESSIONAL)
+  // @Roles('ADMIN')
   async findAll(@Query('search') search?: string) {
     return this.elderlyService.findAll(search);
   }

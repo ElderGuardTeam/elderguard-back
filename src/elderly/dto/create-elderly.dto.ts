@@ -1,10 +1,10 @@
 import {
   IsString,
   IsNotEmpty,
-  IsDate,
   IsNumber,
   ValidateNested,
   IsArray,
+  IsDateString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CreateAddressDto } from 'src/address/dto/create-address.dto';
@@ -19,8 +19,7 @@ export class CreateElderlyDto {
   @IsNotEmpty()
   name: string;
 
-  @IsDate()
-  @Type(() => Date)
+  @IsDateString()
   dateOfBirth: Date;
 
   @IsString()

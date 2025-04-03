@@ -10,6 +10,11 @@ export class UserService {
     return this.prisma.user.create({ data });
   }
 
+  async findById(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    return user;
+  }
+
   async delete(id: string) {
     return this.prisma.user.delete({ where: { id } });
   }

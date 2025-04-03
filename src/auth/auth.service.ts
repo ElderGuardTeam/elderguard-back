@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -25,7 +30,12 @@ export class AuthService {
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async login(user: User) {
-    const payload = { sub: user.id, userType: user.userType };
+    const payload = {
+      sub: user.id,
+      login: user.login,
+      userType: user.userType,
+    };
+    console.log('Gerando token para:', payload);
 
     return {
       access_token: this.jwtService.sign(payload),

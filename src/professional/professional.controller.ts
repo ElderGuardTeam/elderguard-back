@@ -9,6 +9,7 @@ import {
   UseGuards,
   Request,
   ForbiddenException,
+  Query,
 } from '@nestjs/common';
 import { ProfessionalService } from './professional.service';
 import { CreateProfessionalDto } from './dto/create-professional.dto';
@@ -31,8 +32,8 @@ export class ProfessionalController {
 
   @Get()
   @Roles(UserType.ADMIN)
-  findAll() {
-    return this.professionalService.findAll();
+  findAll(@Query('search') search?: string) {
+    return this.professionalService.findAll(search);
   }
 
   @Get(':id')

@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { JwtService } from '@nestjs/jwt';
+import { ExtractJwt } from 'passport-jwt';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -19,7 +20,11 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers.authorization;
-
+    console.log('Headers recebidos:', request.headers);
+    console.log(
+      'Token extraído:',
+      ExtractJwt.fromAuthHeaderAsBearerToken()(request),
+    );
     if (!authHeader) {
       throw new UnauthorizedException('Token não fornecido');
     }
