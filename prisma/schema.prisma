@@ -37,7 +37,7 @@ model Address {
   id           String    @id @default(uuid())
   street       String
   number       String
-  complement   String
+  complement   String?
   neighborhood String
   city         String
   state        String
