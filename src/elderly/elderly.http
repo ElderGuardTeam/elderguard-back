@@ -40,6 +40,7 @@ Content-Type: application/json
 
 ###
 GET http://localhost:3000/elderly
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MmU4ZmNjMy01NTQ3LTQ4NjYtODJmZi03MDMxMjYxMWNkNzUiLCJsb2dpbiI6ImFkbWluIiwidXNlclR5cGUiOiJBRE1JTiIsImlhdCI6MTc0MzYzOTE1NSwiZXhwIjoxNzQzNzI1NTU1fQ.LqfHm25QKcE4f7edn8oBOlKYMAnkDEV9chqsT9QriJQ
 
 ###
 PATCH http://localhost:3000/elderly/db1bef58-d077-4ac4-973d-a50a717cfc9c
@@ -54,3 +55,5 @@ Content-Type: application/json
 
 ###
 DELETE http://localhost:3000/elderly/db1bef58-d077-4ac4-973d-a50a717cfc9c
+
+echo "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MmU4ZmNjMy01NTQ3LTQ4NjYtODJmZi03MDMxMjYxMWNkNzUiLCJsb2dpbiI6ImFkbWluIiwidXNlclR5cGUiOiJBRE1JTiIsImlhdCI6MTc0MzYzNzcyNiwiZXhwIjoxNzQzNzI0MTI2fQ.ThJknzaCw092YkHUDkUsfn6vVqUwLToz_gXYIfXYnb4" | base64 --decode

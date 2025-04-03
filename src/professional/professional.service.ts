@@ -30,8 +30,15 @@ export class ProfessionalService {
     });
   }
 
-  async findAll() {
-    return this.prisma.professional.findMany({ include: { user: true } });
+  async findAll(search?: string) {
+    return this.prisma.professional.findMany({
+      where: search
+        ? {
+            OR: [{ name: { contains: search } }, { cpf: { contains: search } }],
+          }
+        : undefined,
+      include: { user: true },
+    });
   }
 
   async findOne(id: string) {
