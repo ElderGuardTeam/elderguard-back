@@ -83,18 +83,19 @@ model Professional {
 }
 
 model User {
-  id               String        @id @default(uuid())
-  login            String        @unique
-  name             String?
-  email            String        @default("")
-  password         String
-  userType         UserType      @default(USER)
-  resetToken       String?
-  resetTokenExpiry DateTime?
-  created          DateTime      @default(now())
-  updated          DateTime      @updatedAt
-  elderly          Elderly?
-  professional     Professional?
+  id                 String        @id @default(uuid())
+  login              String        @unique
+  name               String?
+  email              String        @default("")
+  password           String
+  userType           UserType      @default(USER)
+  resetToken         String?
+  resetTokenExpiry   DateTime?
+  mustChangePassword Boolean       @default(true)
+  created            DateTime      @default(now())
+  updated            DateTime      @updatedAt
+  elderly            Elderly?
+  professional       Professional?
 }
 
 enum UserType {

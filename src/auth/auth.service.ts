@@ -37,7 +37,12 @@ export class AuthService {
       name: user.name,
     };
     console.log('Gerando token para:', payload);
-
+    if (user.mustChangePassword) {
+      return {
+        message: 'ALTER_PASSWORD_REQUIRED',
+        userId: user.id, // Retorna o ID para alterar a senha depois
+      };
+    }
     return {
       access_token: this.jwtService.sign(payload),
     };
