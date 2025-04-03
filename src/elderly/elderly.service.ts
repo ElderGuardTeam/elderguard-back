@@ -22,71 +22,69 @@ export class ElderlyService {
   ) {}
 
   async create(data: CreateElderlyDto) {
-    return this.prisma.$transaction(async (tx) => {
-      // Verifica se o CPF já está cadastrado para evitar erro
-      const existingUser = await tx.user.findUnique({
-        where: { login: data.cpf },
-      });
+    return this.prisma.$transaction(
+      async (tx) => {
+        // Verifica se o CPF já está cadastrado para evitar erro
+        const existingUser = await tx.user.findUnique({
+          where: { login: data.cpf },
+        });
 
-      if (existingUser) {
-        throw new BadRequestException('Este CPF já está cadastrado.');
-      }
-      const address = await this.addressService.create(data.address);
-
-      const birthDate = new Date(data.dateOfBirth);
-
-      if (isNaN(birthDate.getTime())) {
-        throw new Error('Data de nascimento inválida');
-      }
-
-      const password = birthDate
-        .toISOString()
-        .split('T')[0]
-        .split('-')
-        .reverse()
-        .join('');
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      // Cria o usuário antes do idoso
-      const user = await tx.user.create({
-        data: {
-          login: data.cpf,
-          name: data.name,
-          password: hashedPassword,
-          userType: UserType.USER,
-        },
-      });
-      const elderly = await tx.elderly.create({
-        data: {
-          cpf: data.cpf,
-          name: data.name,
-          dateOfBirth: birthDate,
-          phone: data.phone,
-          sex: data.sex,
-          weight: data.weight,
-          height: data.height,
-          imc: data.imc,
-          addressId: address.id,
-          userId: user.id,
-        },
-      });
-
-      for (const contact of data.contacts) {
-        if (!contact.address) {
-          throw new Error('Contact address is required');
+        if (existingUser) {
+          throw new BadRequestException('Este CPF já está cadastrado.');
         }
-        const address = await this.addressService.create(contact.address);
-        const newContact = await this.contactService.create({
-          ...contact,
-          addressId: address.id,
-        });
-        await this.prisma.elderlyContact.create({
-          data: { elderlyId: elderly.id, contactId: newContact.id },
-        });
-      }
+        const address = await this.addressService.create(data.address);
 
-      return { elderly, user };
-    });
+        const birthDate = new Date(data.dateOfBirth);
+
+        if (isNaN(birthDate.getTime())) {
+          throw new Error('Data de nascimento inválida');
+        }
+
+        const hashedPassword = await bcrypt.hash(data.cpf, 10);
+
+        // Cria o usuário antes do idoso
+        const user = await tx.user.create({
+          data: {
+            login: data.cpf,
+            name: data.name,
+            email: data.email,
+            password: hashedPassword,
+            userType: UserType.USER,
+          },
+        });
+        const elderly = await tx.elderly.create({
+          data: {
+            cpf: data.cpf,
+            name: data.name,
+            dateOfBirth: birthDate,
+            phone: data.phone,
+            sex: data.sex,
+            weight: data.weight,
+            height: data.height,
+            imc: data.imc,
+            addressId: address.id,
+            userId: user.id,
+          },
+        });
+
+        for (const contact of data.contacts) {
+          if (!contact.address) {
+            throw new Error('Contact address is required');
+          }
+          const address = await this.addressService.create(contact.address);
+          const newContact = await this.contactService.create({
+            ...contact,
+            addressId: address.id,
+          });
+          await this.prisma.elderlyContact.create({
+            data: { elderlyId: elderly.id, contactId: newContact.id },
+          });
+        }
+
+        return { elderly, user };
+      },
+      { timeout: 10000 },
+    );
   }
 
   async findAll(search?: string) {

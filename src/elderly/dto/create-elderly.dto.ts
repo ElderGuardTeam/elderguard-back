@@ -5,6 +5,7 @@ import {
   ValidateNested,
   IsArray,
   IsDateString,
+  IsEmail,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { CreateAddressDto } from 'src/address/dto/create-address.dto';
@@ -13,7 +14,7 @@ import { CreateContactDto } from 'src/contact/dto/create-contact.dto';
 export class CreateElderlyDto {
   @IsString()
   @IsNotEmpty()
-  @Transform(({ value }) => value.replace(/\D/g, ''))
+  @Transform(({ value }: { value: string }) => value.replace(/\D/g, ''))
   cpf: string;
 
   @IsString()
@@ -25,8 +26,12 @@ export class CreateElderlyDto {
 
   @IsString()
   @IsNotEmpty()
-  @Transform(({ value }) => value.replace(/\D/g, ''))
+  @Transform(({ value }: { value: string }) => value.replace(/\D/g, ''))
   phone: string;
+
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
 
   @IsString()
   @IsNotEmpty()

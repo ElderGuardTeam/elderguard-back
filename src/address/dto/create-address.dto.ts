@@ -21,6 +21,6 @@ export class CreateAddressDto {
   state: string;
 
   @IsString()
-  @Transform(({ value }) => value.replace(/\D/g, ''))
+  @Transform(({ value }: { value: string }) => value.replace(/\D/g, ''))
   zipCode: string;
 }

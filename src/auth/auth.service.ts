@@ -59,10 +59,15 @@ export class AuthService {
     });
 
     // 🔹 Enviar e-mail (ou logar no console se ainda não tiver email configurado)
-    await this.mailService.sendPasswordReset(user.login, resetToken);
+    if (!user.email) {
+      throw new BadRequestException('Usuário não possui um e-mail válido');
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await this.mailService.sendPasswordReset(user.email, resetToken);
 
     return { message: 'E-mail de recuperação enviado' };
   }
+
   async resetPassword(token: string, newPassword: string) {
     const user = await this.prisma.user.findFirst({
       where: { resetToken: token, resetTokenExpiry: { gte: new Date() } },

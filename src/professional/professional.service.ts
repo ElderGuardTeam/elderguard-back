@@ -30,6 +30,7 @@ export class ProfessionalService {
       const user = await tx.user.create({
         data: {
           login: data.cpf,
+          email: data.email,
           name: data.name,
           password: hashedPassword,
           userType: UserType.TECH_PROFESSIONAL,

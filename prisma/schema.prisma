@@ -17,6 +17,7 @@ model Elderly {
   id          String           @id @default(uuid())
   cpf         String           @unique
   name        String
+  email       String           @default("")
   dateOfBirth DateTime
   phone       String
   contacts    ElderlyContact[]
@@ -85,6 +86,7 @@ model User {
   id               String        @id @default(uuid())
   login            String        @unique
   name             String?
+  email            String        @default("")
   password         String
   userType         UserType      @default(USER)
   resetToken       String?
