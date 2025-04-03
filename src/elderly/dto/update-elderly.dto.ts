@@ -1,5 +1,12 @@
-import { IsString, IsOptional, IsArray, ValidateNested } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import {
+  IsString,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  IsEmail,
+  IsDateString,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 import { UpdateContactDto } from '../../contact/dto/update-contact.dto';
 
 export class UpdateElderlyDto {
@@ -7,14 +14,20 @@ export class UpdateElderlyDto {
   @IsString()
   name?: string;
 
+  @IsDateString()
+  dateOfBirth?: Date;
+
   @IsOptional()
   @IsString()
-  @Transform(({ value }) => value.replace(/\D/g, ''))
   phone?: string;
 
   @IsOptional()
   @IsString()
   sex?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 
   @IsOptional()
   weight?: number;

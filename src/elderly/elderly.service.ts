@@ -75,6 +75,7 @@ export class ElderlyService {
         data: {
           cpf: sanitizedData.cpf,
           name: sanitizedData.name,
+          email: sanitizedData.email,
           dateOfBirth: birthDate,
           phone: sanitizedData.phone,
           sex: sanitizedData.sex,
@@ -95,7 +96,11 @@ export class ElderlyService {
 
         if (!newContact) {
           newContact = await tx.contact.create({
-            data: { ...contact, addressId: contact.addressId, address: undefined },
+            data: {
+              ...contact,
+              addressId: contact.addressId,
+              address: undefined,
+            },
           });
         }
 
@@ -146,6 +151,7 @@ export class ElderlyService {
     if (!existingElderly) {
       throw new NotFoundException(`Idoso com ID ${id} não encontrado.`);
     }
+    const birthDate = data.dateOfBirth ? new Date(data.dateOfBirth) : undefined;
 
     if (data.contacts && data.contacts.length > 0) {
       for (const contact of data.contacts) {
@@ -161,6 +167,8 @@ export class ElderlyService {
       data: {
         name: data.name,
         phone: data.phone,
+        email: data.email,
+        dateOfBirth: birthDate,
         sex: data.sex,
         weight: data.weight,
         height: data.height,
