@@ -9,7 +9,7 @@ export class CreateAddressDto {
   number: string;
 
   @IsString()
-  complement: string;
+  complement?: string;
 
   @IsString()
   neighborhood: string;
