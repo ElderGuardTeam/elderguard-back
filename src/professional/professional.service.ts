@@ -1,32 +1,51 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { CreateProfessionalDto } from './dto/create-professional.dto';
 import { UpdateProfessionalDto } from './dto/update-professional.dto';
+import { UserType } from '@prisma/client';
 
 @Injectable()
 export class ProfessionalService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: CreateProfessionalDto) {
-    const hashedPassword = await bcrypt.hash(data.password, 10);
+    return this.prisma.$transaction(async (tx) => {
+      // Verifica se o CPF já está cadastrado para evitar erro
+      const existingUser = await tx.user.findUnique({
+        where: { login: data.cpf },
+      });
 
-    return this.prisma.professional.create({
-      data: {
-        cpf: data.cpf,
-        name: data.name,
-        phone: data.phone,
-        email: data.email,
-        user: {
-          create: {
-            login: data.cpf,
-            name: data.name,
-            password: hashedPassword,
-            userType: data.userType,
-          },
+      if (existingUser) {
+        throw new BadRequestException('Este CPF já está cadastrado.');
+      }
+
+      const hashedPassword = await bcrypt.hash(data.cpf, 10);
+
+      // Cria o usuário antes do idoso
+      const user = await tx.user.create({
+        data: {
+          login: data.cpf,
+          name: data.name,
+          password: hashedPassword,
+          userType: UserType.TECH_PROFESSIONAL,
         },
-      },
-      include: { user: true },
+      });
+      const professional = await tx.professional.create({
+        data: {
+          cpf: data.cpf,
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          userId: user.id,
+        },
+      });
+
+      return { professional, user };
     });
   }
 
