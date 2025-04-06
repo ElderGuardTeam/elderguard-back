@@ -89,12 +89,11 @@ model Question {
   type        QuestionType
   created     DateTime     @default(now())
   updated     DateTime     @updatedAt
-
-  Option Option[]
+  options     Option[]
 
   QuestionAnswer QuestionAnswer[]
-
 }
+
 model Option {
   id          String   @id @default(uuid())
   description String
@@ -107,31 +106,30 @@ model Option {
 }
 
 model OptionAnswer {
-  id        String   @id @default(uuid())
-  value     Int
-  answerText String?
-  answerNumber Float?
-  answerBoolean Boolean?
-  option    Option   @relation(fields: [optionId], references: [id])
-  optionId  String
-  questionAnswer  QuestionAnswer @relation(fields: [questionAnswerId], references: [id])
+  id               String         @id @default(uuid())
+  score            Int
+  answerText       String?
+  answerNumber     Float?
+  answerBoolean    Boolean?
+  option           Option         @relation(fields: [optionId], references: [id])
+  optionId         String
+  questionAnswer   QuestionAnswer @relation(fields: [questionAnswerId], references: [id])
   questionAnswerId String
-  created   DateTime @default(now())
-  updated   DateTime @updatedAt
+  created          DateTime       @default(now())
+  updated          DateTime       @updatedAt
 }
 
 model QuestionAnswer {
-  id           String   @id @default(uuid())
-  question     Question @relation(fields: [questionId], references: [id])
-  questionId   String
-  answerText   String?
-  answerNumber Float?
-  answerImage  String?
-  value        Int?
-  created      DateTime @default(now())
-  updated      DateTime @updatedAt
-
-  OptionAnswer OptionAnswer[]
+  id            String         @id @default(uuid())
+  question      Question       @relation(fields: [questionId], references: [id])
+  questionId    String
+  answerText    String?
+  answerNumber  Float?
+  answerImage   String?
+  score         Int?
+  created       DateTime       @default(now())
+  updated       DateTime       @updatedAt
+  optionAnswers OptionAnswer[]
 }
 
 model User {
