@@ -9,8 +9,8 @@ generator client {
 }
 
 datasource db {
-  provider              = "sqlite"
-  url                   = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model Elderly {
@@ -82,6 +82,58 @@ model Professional {
   updated DateTime @updatedAt
 }
 
+model Question {
+  id          String       @id @default(uuid())
+  title       String
+  description String
+  type        QuestionType
+  created     DateTime     @default(now())
+  updated     DateTime     @updatedAt
+
+  Option Option[]
+
+  QuestionAnswer QuestionAnswer[]
+
+}
+model Option {
+  id          String   @id @default(uuid())
+  description String
+  question    Question @relation(fields: [questionId], references: [id])
+  questionId  String
+  created     DateTime @default(now())
+  updated     DateTime @updatedAt
+
+  OptionAnswer OptionAnswer[]
+}
+
+model OptionAnswer {
+  id        String   @id @default(uuid())
+  value     Int
+  answerText String?
+  answerNumber Float?
+  answerBoolean Boolean?
+  option    Option   @relation(fields: [optionId], references: [id])
+  optionId  String
+  questionAnswer  QuestionAnswer @relation(fields: [questionAnswerId], references: [id])
+  questionAnswerId String
+  created   DateTime @default(now())
+  updated   DateTime @updatedAt
+}
+
+model QuestionAnswer {
+  id           String   @id @default(uuid())
+  question     Question @relation(fields: [questionId], references: [id])
+  questionId   String
+  answerText   String?
+  answerNumber Float?
+  answerImage  String?
+  value        Int?
+  created      DateTime @default(now())
+  updated      DateTime @updatedAt
+
+  OptionAnswer OptionAnswer[]
+}
+
 model User {
   id                 String        @id @default(uuid())
   login              String        @unique
@@ -102,4 +154,14 @@ enum UserType {
   ADMIN
   USER
   TECH_PROFESSIONAL
+}
+
+enum QuestionType {
+  TEXT
+  NUMBER
+  OPTION
+  IMAGE
+  SELECT
+  MULTISELECT
+  BOOLEAN
 }
