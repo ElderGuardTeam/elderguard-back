@@ -21,6 +21,14 @@ export class CreateElderlyDto {
   @IsNotEmpty()
   name: string;
 
+  @IsString()
+  @IsNotEmpty()
+  education: string;
+
+  @IsString()
+  @IsNotEmpty()
+  socialeconomic: string;
+
   @IsDateString()
   dateOfBirth: Date;
 

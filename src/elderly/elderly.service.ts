@@ -82,6 +82,8 @@ export class ElderlyService {
           weight: sanitizedData.weight,
           height: sanitizedData.height,
           imc: sanitizedData.imc,
+          education: sanitizedData.education,
+          socialeconomic: sanitizedData.socialeconomic,
           addressId: address.id,
           userId: user.id,
         },
@@ -173,6 +175,8 @@ export class ElderlyService {
         weight: data.weight,
         height: data.height,
         imc: data.imc,
+        education: data.education,
+        socialeconomic: data.socialeconomic,
         address: {
           update: {
             street: data.address?.street,

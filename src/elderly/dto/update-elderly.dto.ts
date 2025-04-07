@@ -23,6 +23,14 @@ export class UpdateElderlyDto {
 
   @IsOptional()
   @IsString()
+  education?: string;
+
+  @IsOptional()
+  @IsString()
+  socialeconomic?: string;
+
+  @IsOptional()
+  @IsString()
   sex?: string;
 
   @IsOptional()
