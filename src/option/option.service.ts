@@ -1,26 +1,36 @@
 import { Injectable } from '@nestjs/common';
 import { CreateOptionDto } from './dto/create-option.dto';
 import { UpdateOptionDto } from './dto/update-option.dto';
+import { PrismaService } from 'src/database/prisma.service';
 
 @Injectable()
 export class OptionService {
-  create(createOptionDto: CreateOptionDto) {
-    return 'This action adds a new option';
+  constructor(private prisma: PrismaService) {}
+
+  create(data: CreateOptionDto) {
+    return this.prisma.option.create({ data });
   }
 
   findAll() {
-    return `This action returns all option`;
+    return this.prisma.option.findMany();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} option`;
+  findOne(id: string) {
+    return this.prisma.option.findUnique({
+      where: { id: id },
+    });
   }
 
-  update(id: number, updateOptionDto: UpdateOptionDto) {
-    return `This action updates a #${id} option`;
+  update(id: string, data: UpdateOptionDto) {
+    return this.prisma.option.update({
+      where: { id: id },
+      data,
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} option`;
+  remove(id: string) {
+    return this.prisma.option.delete({
+      where: { id: id },
+    });
   }
 }
