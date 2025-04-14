@@ -11,6 +11,7 @@ import { ContactService } from 'src/contact/contact.service';
 import { UserService } from 'src/user/user.service';
 import * as bcrypt from 'bcrypt';
 import { UserType } from '@prisma/client';
+import { ValidateElderlyDto } from './dto/validate-elderly.dto';
 
 @Injectable()
 export class ElderlyService {
@@ -203,5 +204,23 @@ export class ElderlyService {
     await this.userService.delete(elderly.userId);
 
     return { message: 'Elderly deleted successfully' };
+  }
+
+  async validateIdentity(data: ValidateElderlyDto) {
+    const elderly = await this.prisma.elderly.findFirst({
+      where: {
+        cpf: data.cpf.replace(/\D/g, ''),
+        name: data.name,
+        sex: data.sex,
+      },
+    });
+
+    if (!elderly) {
+      throw new NotFoundException(
+        'Dados inválidos, por favor verifique se os campos estão corretos',
+      );
+    }
+
+    return elderly;
   }
 }

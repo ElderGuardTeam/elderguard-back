@@ -18,6 +18,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { UserType } from '@prisma/client';
+import { ValidateElderlyDto } from './dto/validate-elderly.dto';
 @Controller('elderly')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 // @UseGuards(JwtAuthGuard, RolesGuard)
@@ -63,5 +64,11 @@ export class ElderlyController {
   @Roles(UserType.ADMIN, UserType.TECH_PROFESSIONAL)
   remove(@Param('id') id: string) {
     return this.elderlyService.delete(id);
+  }
+
+  @Post('validate-identity')
+  @Roles(UserType.ADMIN, UserType.TECH_PROFESSIONAL)
+  validateIdentity(@Body() data: ValidateElderlyDto) {
+    return this.elderlyService.validateIdentity(data);
   }
 }
