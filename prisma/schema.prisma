@@ -99,6 +99,7 @@ model Question {
 model Option {
   id          String   @id @default(uuid())
   description String
+  score       Int
   question    Question @relation(fields: [questionId], references: [id])
   questionId  String
   created     DateTime @default(now())
@@ -159,7 +160,6 @@ enum UserType {
 enum QuestionType {
   TEXT
   NUMBER
-  OPTION
   IMAGE
   SELECT
   MULTISELECT
