@@ -12,7 +12,7 @@ export class CreateQuestionDto {
   @IsNotEmpty()
   description: string;
 
-  @IsEnum(UserType)
+  @IsEnum(QuestionType)
   type: QuestionType;
 
   @ValidateNested()
