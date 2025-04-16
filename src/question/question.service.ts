@@ -98,8 +98,13 @@ export class QuestionService {
   }
 
   async remove(id: string) {
-    return await this.prisma.question.delete({
+    await this.prisma.option.deleteMany({
+      where: { questionId: id },
+    });
+    await this.prisma.question.delete({
       where: { id },
     });
+
+    return { message: 'Questão removida com sucesso!' };
   }
 }
