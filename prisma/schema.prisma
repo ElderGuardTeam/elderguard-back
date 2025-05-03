@@ -33,6 +33,7 @@ model Elderly {
   userId         String           @unique
   created        DateTime         @default(now())
   updated        DateTime         @updatedAt
+  FormAnsware    FormAnsware[]
 }
 
 model Address {
@@ -73,26 +74,30 @@ model ElderlyContact {
 }
 
 model Professional {
-  id      String   @id @default(uuid())
-  cpf     String   @unique
-  name    String
-  phone   String
-  email   String
-  user    User     @relation(fields: [userId], references: [id])
-  userId  String   @unique
-  created DateTime @default(now())
-  updated DateTime @updatedAt
+  id          String        @id @default(uuid())
+  cpf         String        @unique
+  name        String
+  phone       String
+  email       String
+  user        User          @relation(fields: [userId], references: [id])
+  userId      String        @unique
+  created     DateTime      @default(now())
+  updated     DateTime      @updatedAt
+  FormAnsware FormAnsware[]
 }
 
 model Question {
-  id          String       @id @default(uuid())
-  title       String
-  description String
-  type        QuestionType
-  created     DateTime     @default(now())
-  updated     DateTime     @updatedAt
-  options     Option[]
-
+  id             String                 @id @default(uuid())
+  title          String
+  description    String
+  type           QuestionType
+  created        DateTime               @default(now())
+  updated        DateTime               @updatedAt
+  options        Option[]
+  ruleId         String?
+  rule           Rule?                  @relation(fields: [ruleId], references: [id])
+  formRel        Form_has_Question[]
+  seccionRel     Seccion_has_Question[]
   QuestionAnswer QuestionAnswer[]
 }
 
@@ -126,6 +131,8 @@ model QuestionAnswer {
   id            String         @id @default(uuid())
   question      Question       @relation(fields: [questionId], references: [id])
   questionId    String
+  formAnsware   FormAnsware    @relation(fields: [formAnswareId], references: [id])
+  formAnswareId String
   answerText    String?
   answerNumber  Float?
   answerImage   String?
@@ -164,4 +171,116 @@ enum QuestionType {
   SELECT
   MULTISELECT
   BOOLEAN
+}
+
+enum RuleType {
+  CONDITIONAL
+  SUM
+  ARITHMETIC
+}
+
+model Form {
+  id             String                @id @default(uuid())
+  title          String
+  type           String?
+  description    String?
+  index          Int?
+  seccions       Seccion[]
+  questionsRel   Form_has_Question[]
+  evaluationsRel Evaluation_has_Form[]
+  answaresForm   FormAnsware[]
+  created        DateTime              @default(now())
+  updated        DateTime              @updatedAt
+}
+
+model Form_has_Question {
+  formId     String
+  questionId String
+  form       Form     @relation(fields: [formId], references: [id])
+  question   Question @relation(fields: [questionId], references: [id])
+
+  @@id([formId, questionId])
+}
+
+model Seccion {
+  id           String                 @id @default(uuid())
+  title        String
+  ruleId       String?
+  formId       String
+  rule         Rule?                  @relation(fields: [ruleId], references: [id])
+  form         Form                   @relation(fields: [formId], references: [id])
+  questionsRel Seccion_has_Question[]
+  created      DateTime               @default(now())
+  updated      DateTime               @updatedAt
+}
+
+model Seccion_has_Question {
+  seccionId  String
+  questionId String
+  seccion    Seccion  @relation(fields: [seccionId], references: [id])
+  question   Question @relation(fields: [questionId], references: [id])
+
+  @@id([seccionId, questionId])
+}
+
+model Rule {
+  id        String     @id @default(uuid())
+  type      RuleType
+  values    String?
+  operation String?
+  seccions  Seccion[]
+  questions Question[]
+  created   DateTime   @default(now())
+  updated   DateTime   @updatedAt
+}
+
+model FormAnsware {
+  id                  String            @id @default(uuid())
+  totalScore          Float?
+  formId              String
+  elderlyId           String
+  techProfessionalId  String
+  evaluationAnswareId String
+  evaluationAnsware   EvaluationAnsware @relation(fields: [evaluationAnswareId], references: [id])
+  form                Form              @relation(fields: [formId], references: [id])
+  idoso               Elderly           @relation(fields: [elderlyId], references: [id])
+  professional        Professional      @relation(fields: [techProfessionalId], references: [id])
+  questionsAnswares   QuestionAnswer[]
+  evaluations         Evaluation[]
+  created             DateTime          @default(now())
+  updated             DateTime          @updatedAt
+}
+
+model Evaluation {
+  id                  String                @id @default(uuid())
+  title               String
+  description         String?
+  formularioAnswareId String
+  formularioAnsware   FormAnsware           @relation(fields: [formularioAnswareId], references: [id])
+  formsRel            Evaluation_has_Form[]
+  created             DateTime              @default(now())
+  updated             DateTime              @updatedAt
+  EvaluationAnsware   EvaluationAnsware[]
+}
+
+model Evaluation_has_Form {
+  evaluationId String
+  formId       String
+  order        Int // posição do formulário dentro da avaliação
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id])
+  form         Form       @relation(fields: [formId], references: [id])
+
+  @@id([evaluationId, formId])
+}
+
+// Registro de cada execução/resposta de avaliação
+model EvaluationAnsware {
+  id           String        @id @default(uuid())
+  evaluationId String
+  dateAnsware  DateTime      @default(now())
+  scoreTotal   Float?
+  evaluation   Evaluation    @relation(fields: [evaluationId], references: [id])
+  formAnswares FormAnsware[]
+  created      DateTime      @default(now())
+  updated      DateTime      @updatedAt
 }
