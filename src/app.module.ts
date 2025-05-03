@@ -11,10 +11,17 @@ import { AuthModule } from './auth/auth.module';
 import { MailModule } from './mail/mail.module';
 import { QuestionModule } from './question/question.module';
 import { OptionModule } from './option/option.module';
+import { RuleEngineService } from './common/rule-engine/rule-engine.service';
+import { RuleModule } from './rule/rule.module';
+import { SeccionModule } from './seccion/seccion.module';
+import { FormModule } from './form/form.module';
+import { EvaluationModule } from './evaluation/evaluation.module';
+import { EvaluationAnswareModule } from './evaluation-answare/evaluation-answare.module';
+import { FormAnswareModule } from './form-answare/form-answare.module';
 
 @Module({
-  imports: [DatabaseModule, ElderlyModule, ContactModule, AddressModule, UserModule, ProfessionalModule, AuthModule, MailModule, QuestionModule, OptionModule],
+  imports: [DatabaseModule, ElderlyModule, ContactModule, AddressModule, UserModule, ProfessionalModule, AuthModule, MailModule, QuestionModule, OptionModule, RuleModule, SeccionModule, FormModule, EvaluationModule, EvaluationAnswareModule, FormAnswareModule],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, RuleEngineService],
 })
 export class AppModule {}

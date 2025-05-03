@@ -111,6 +111,8 @@ model Option {
   updated     DateTime @updatedAt
 
   OptionAnswer OptionAnswer[]
+
+  QuestionAnswer QuestionAnswer[]
 }
 
 model OptionAnswer {
@@ -128,18 +130,21 @@ model OptionAnswer {
 }
 
 model QuestionAnswer {
-  id            String         @id @default(uuid())
-  question      Question       @relation(fields: [questionId], references: [id])
-  questionId    String
-  formAnsware   FormAnsware    @relation(fields: [formAnswareId], references: [id])
-  formAnswareId String
-  answerText    String?
-  answerNumber  Float?
-  answerImage   String?
-  score         Int?
-  created       DateTime       @default(now())
-  updated       DateTime       @updatedAt
-  optionAnswers OptionAnswer[]
+  id               String         @id @default(uuid())
+  question         Question       @relation(fields: [questionId], references: [id])
+  questionId       String
+  formAnsware      FormAnsware    @relation(fields: [formAnswareId], references: [id])
+  formAnswareId    String
+  answerText       String?
+  answerNumber     Float?
+  answerImage      String?
+  answerBoolean    Boolean?
+  selectedOptionId String?
+  selectedOption   Option?        @relation(fields: [selectedOptionId], references: [id])
+  score            Int?
+  created          DateTime       @default(now())
+  updated          DateTime       @updatedAt
+  optionAnswers    OptionAnswer[]
 }
 
 model User {
@@ -180,22 +185,23 @@ enum RuleType {
 }
 
 model Form {
-  id             String                @id @default(uuid())
-  title          String
-  type           String?
-  description    String?
-  index          Int?
-  seccions       Seccion[]
-  questionsRel   Form_has_Question[]
-  evaluationsRel Evaluation_has_Form[]
-  answaresForm   FormAnsware[]
-  created        DateTime              @default(now())
-  updated        DateTime              @updatedAt
+  id                  String                @id @default(uuid())
+  title               String
+  type                String?
+  description         String?
+  index               Int?
+  seccions            Seccion[]
+  questionsRel        Form_has_Question[]
+  created             DateTime              @default(now())
+  updated             DateTime              @updatedAt
+  FormAnsware         FormAnsware[]
+  Evaluation_has_Form Evaluation_has_Form[]
 }
 
 model Form_has_Question {
   formId     String
   questionId String
+  index      Int
   form       Form     @relation(fields: [formId], references: [id])
   question   Question @relation(fields: [questionId], references: [id])
 
@@ -246,21 +252,19 @@ model FormAnsware {
   idoso               Elderly           @relation(fields: [elderlyId], references: [id])
   professional        Professional      @relation(fields: [techProfessionalId], references: [id])
   questionsAnswares   QuestionAnswer[]
-  evaluations         Evaluation[]
   created             DateTime          @default(now())
   updated             DateTime          @updatedAt
 }
 
 model Evaluation {
-  id                  String                @id @default(uuid())
-  title               String
-  description         String?
-  formularioAnswareId String
-  formularioAnsware   FormAnsware           @relation(fields: [formularioAnswareId], references: [id])
-  formsRel            Evaluation_has_Form[]
-  created             DateTime              @default(now())
-  updated             DateTime              @updatedAt
-  EvaluationAnsware   EvaluationAnsware[]
+  id          String                @id @default(uuid())
+  title       String
+  description String?
+  formsRel    Evaluation_has_Form[]
+  created     DateTime              @default(now())
+  updated     DateTime              @updatedAt
+
+  EvaluationAnsware EvaluationAnsware[]
 }
 
 model Evaluation_has_Form {
