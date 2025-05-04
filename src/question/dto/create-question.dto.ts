@@ -1,7 +1,8 @@
-import { QuestionType, UserType } from '@prisma/client';
+import { QuestionType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsEnum, IsNotEmpty, IsString, ValidateNested } from 'class-validator';
 import { CreateOptionDto } from 'src/option/dto/create-option.dto';
+import { CreateRuleDto } from 'src/rule/dto/create-rule.dto';
 
 export class CreateQuestionDto {
   @IsString()
@@ -18,4 +19,8 @@ export class CreateQuestionDto {
   @ValidateNested()
   @Type(() => CreateOptionDto)
   options?: CreateOptionDto[];
+
+  @ValidateNested()
+  @Type(() => CreateRuleDto)
+  rule?: CreateRuleDto;
 }

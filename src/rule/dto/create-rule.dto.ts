@@ -6,7 +6,7 @@ export class CreateRuleDto {
 
   @IsOptional()
   @IsString()
-  alues?: string;
+  values?: string;
 
   @IsOptional()
   @IsString()

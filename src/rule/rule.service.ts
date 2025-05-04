@@ -7,23 +7,23 @@ import { PrismaService } from 'src/database/prisma.service';
 export class RuleService {
   constructor(private prisma: PrismaService) {}
 
-  create(dto: CreateRuleDto) {
+  async create(dto: CreateRuleDto) {
     return this.prisma.rule.create({ data: dto });
   }
 
-  findAll() {
+  async findAll() {
     return this.prisma.rule.findMany();
   }
 
-  findOne(id: string) {
+  async findOne(id: string) {
     return this.prisma.rule.findUnique({ where: { id } });
   }
 
-  update(id: string, dto: UpdateRuleDto) {
+  async update(id: string, dto: UpdateRuleDto) {
     return this.prisma.rule.update({ where: { id }, data: dto });
   }
 
-  remove(id: string) {
+  async remove(id: string) {
     return this.prisma.rule.delete({ where: { id } });
   }
 }

@@ -7,28 +7,28 @@ import { PrismaService } from 'src/database/prisma.service';
 export class OptionService {
   constructor(private prisma: PrismaService) {}
 
-  create(data: CreateOptionDto) {
+  async create(data: CreateOptionDto) {
     return this.prisma.option.create({ data });
   }
 
-  findAll() {
+  async findAll() {
     return this.prisma.option.findMany();
   }
 
-  findOne(id: string) {
+  async findOne(id: string) {
     return this.prisma.option.findUnique({
       where: { id: id },
     });
   }
 
-  update(id: string, data: UpdateOptionDto) {
+  async update(id: string, data: UpdateOptionDto) {
     return this.prisma.option.update({
       where: { id: id },
       data,
     });
   }
 
-  remove(id: string) {
+  async remove(id: string) {
     return this.prisma.option.delete({
       where: { id: id },
     });

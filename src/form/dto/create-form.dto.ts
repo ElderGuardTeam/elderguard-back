@@ -1,4 +1,6 @@
-import { IsString, IsOptional, IsInt } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsString, IsOptional, IsInt, ValidateNested } from 'class-validator';
+import { CreateSeccionDto } from 'src/seccion/dto/create-seccion.dto';
 export class CreateFormDto {
   @IsString()
   title: string;
@@ -14,4 +16,8 @@ export class CreateFormDto {
   @IsOptional()
   @IsInt()
   index?: number;
+
+  @ValidateNested()
+  @Type(() => CreateSeccionDto)
+  seccion?: CreateSeccionDto;
 }

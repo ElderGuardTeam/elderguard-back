@@ -6,23 +6,23 @@ import { PrismaService } from 'src/database/prisma.service';
 @Injectable()
 export class EvaluationService {
   constructor(private prisma: PrismaService) {}
-  create(dto: CreateEvaluationDto) {
+  async create(dto: CreateEvaluationDto) {
     return this.prisma.evaluation.create({ data: dto });
   }
 
-  findAll() {
+  async findAll() {
     return this.prisma.evaluation.findMany();
   }
 
-  findOne(id: string) {
+  async findOne(id: string) {
     return this.prisma.evaluation.findUnique({ where: { id } });
   }
 
-  update(id: string, dto: UpdateEvaluationDto) {
+  async update(id: string, dto: UpdateEvaluationDto) {
     return this.prisma.evaluation.update({ where: { id }, data: dto });
   }
 
-  remove(id: string) {
+  async remove(id: string) {
     return this.prisma.evaluation.delete({ where: { id } });
   }
 }
