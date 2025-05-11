@@ -1,14 +1,42 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { RuleType } from '@prisma/client';
 export class CreateRuleDto {
   @IsEnum(RuleType)
   type: RuleType;
 
   @IsOptional()
-  @IsString()
-  values?: string;
+  @IsNumber()
+  maxScore?: number;
 
   @IsOptional()
   @IsString()
   operation?: string;
+
+  @IsOptional()
+  @IsString()
+  condition?: string;
+
+  @IsOptional()
+  @IsString()
+  value1Type?: string;
+
+  @IsOptional()
+  @IsString()
+  value2Type?: string;
+
+  @IsOptional()
+  @IsNumber()
+  value1?: number;
+
+  @IsOptional()
+  @IsNumber()
+  value2?: number;
+
+  @IsOptional()
+  @IsNumber()
+  valueIf?: number;
+
+  @IsOptional()
+  @IsNumber()
+  valueThen?: number;
 }

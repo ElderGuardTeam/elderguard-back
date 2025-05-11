@@ -232,7 +232,14 @@ model Seccion_has_Question {
 model Rule {
   id        String     @id @default(uuid())
   type      RuleType
-  values    String?
+  maxScore  Int?
+  value1Type String?
+  value2Type String?
+  value1    Int?
+  value2    Int?
+  valueIf   Int?
+  valueThen Int?
+  condition String?
   operation String?
   seccions  Seccion[]
   questions Question[]
