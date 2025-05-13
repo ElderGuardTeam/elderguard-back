@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { CreateFormDto } from './dto/create-form.dto';
 import { UpdateFormDto } from './dto/update-form.dto';
 import { PrismaService } from 'src/database/prisma.service';
-import { RuleService } from 'src/rule/rule.service';
 import { SeccionService } from 'src/seccion/seccion.service';
 
 @Injectable()
@@ -13,9 +12,9 @@ export class FormService {
   ) {}
   async create(dto: CreateFormDto) {
     if (dto.seccion) {
-      const rule = await this.seccionService.create(dto.seccion);
       return this.prisma.form.create({
-        data: { ...dto, ruleId: rule.id }});
+        data: { ...dto },
+      });
     }
     return this.prisma.form.create({ data: dto });
   }

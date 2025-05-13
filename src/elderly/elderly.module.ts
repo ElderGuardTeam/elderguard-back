@@ -10,5 +10,6 @@ import { UserModule } from 'src/user/user.module';
   imports: [AddressModule, ContactModule, UserModule], // Adicionamos o UserModule
   controllers: [ElderlyController],
   providers: [ElderlyService, PrismaService],
+  exports: [ElderlyService], // Exportamos o ElderlyService para que possa ser utilizado em outros módulos
 })
 export class ElderlyModule {}
