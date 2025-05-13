@@ -189,13 +189,14 @@ model Form {
   title               String
   type                String?
   description         String?
-  index               Int?
   seccions            Seccion[]
   questionsRel        Form_has_Question[]
-  created             DateTime              @default(now())
-  updated             DateTime              @updatedAt
   FormAnsware         FormAnsware[]
   Evaluation_has_Form Evaluation_has_Form[]
+  ruleId              String?
+  rule                Rule?                 @relation(fields: [ruleId], references: [id])
+  created             DateTime              @default(now())
+  updated             DateTime              @updatedAt
 }
 
 model Form_has_Question {
@@ -230,21 +231,20 @@ model Seccion_has_Question {
 }
 
 model Rule {
-  id        String     @id @default(uuid())
-  type      RuleType
-  maxScore  Int?
+  id         String     @id @default(uuid())
+  type       RuleType
+  maxScore   Int?
   value1Type String?
   value2Type String?
-  value1    Int?
-  value2    Int?
-  valueIf   Int?
-  valueThen Int?
-  condition String?
-  operation String?
-  seccions  Seccion[]
-  questions Question[]
-  created   DateTime   @default(now())
-  updated   DateTime   @updatedAt
+  value1     Int?
+  value2     Int?
+  condition  String?
+  operation  String?
+  seccions   Seccion[]
+  questions  Question[]
+  created    DateTime   @default(now())
+  updated    DateTime   @updatedAt
+  Form       Form[]
 }
 
 model FormAnsware {

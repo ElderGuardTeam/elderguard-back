@@ -11,7 +11,7 @@ export class FormService {
     private seccionService: SeccionService,
   ) {}
   async create(dto: CreateFormDto) {
-    if (dto.seccion) {
+    if (dto.seccions) {
       return this.prisma.form.create({
         data: { ...dto },
       });

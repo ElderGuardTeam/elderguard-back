@@ -31,12 +31,4 @@ export class CreateRuleDto {
   @IsOptional()
   @IsNumber()
   value2?: number;
-
-  @IsOptional()
-  @IsNumber()
-  valueIf?: number;
-
-  @IsOptional()
-  @IsNumber()
-  valueThen?: number;
 }
