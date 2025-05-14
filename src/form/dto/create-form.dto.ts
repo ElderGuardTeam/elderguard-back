@@ -23,4 +23,7 @@ export class CreateFormDto {
   @ValidateNested()
   @Type(() => CreateRuleDto)
   rule?: CreateRuleDto;
+
+  @IsArray()
+  questionsIds: string[];
 }

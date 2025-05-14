@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateSeccionDto } from './dto/create-seccion.dto';
 import { UpdateSeccionDto } from './dto/update-seccion.dto';
 import { PrismaService } from 'src/database/prisma.service';
@@ -11,15 +11,23 @@ export class SeccionService {
     private prisma: PrismaService,
     private ruleService: RuleService,
   ) {}
+
   async create(dto: CreateSeccionDto) {
     if (dto.rule) {
       const rule = await this.ruleService.create(dto.rule);
-      return this.prisma.seccion.create({
+      const seccion = await this.prisma.seccion.create({
         data: { ...{ ...dto, ruleId: rule.id, rule: undefined } },
       });
     }
     const { rule, ...rest } = dto;
-    return this.prisma.seccion.create({ data: rest });
+    const seccion = await this.prisma.seccion.create({ data: rest });
+
+    for (const question of dto.questionsIds) {
+      await this.prisma.seccion_has_Question.create({
+        data: { seccionId: seccion.id, questionId: question },
+      });
+    }
+    return seccion;
   }
 
   async findAll() {
@@ -30,15 +38,52 @@ export class SeccionService {
     return this.prisma.seccion.findUnique({ where: { id } });
   }
 
-  // async update(id: string, dto: UpdateSeccionDto) {
-  //   const { ruleId, ...rest } = dto;
-  //   return this.prisma.seccion.update({
-  //     where: { id },
-  //     data: rest,
-  //   });
-  // }
+  async update(id: string, dto: UpdateSeccionDto) {
+    const existingSeccion = await this.prisma.seccion.findUnique({
+      where: { id },
+    });
+    if (!existingSeccion) {
+      throw new NotFoundException(`Seção com ID ${id} não encontrada.`);
+    }
+
+    let ruleId = existingSeccion.ruleId;
+    if (dto.rule) {
+      const rule = await this.ruleService.create(dto.rule);
+      ruleId = rule.id;
+    }
+
+    const { rule, questionsIds, ...rest } = dto;
+
+    const updatedSeccion = await this.prisma.seccion.update({
+      where: { id },
+      data: {
+        ...rest,
+        ruleId,
+      },
+    });
+
+    if (questionsIds && Array.isArray(questionsIds)) {
+      // Remove existing relations
+      await this.prisma.seccion_has_Question.deleteMany({
+        where: { seccionId: id },
+      });
+      // Add new relations
+      for (const questionId of questionsIds) {
+        await this.prisma.seccion_has_Question.create({
+          data: { seccionId: id, questionId },
+        });
+      }
+    }
+
+    return updatedSeccion;
+  }
 
   async remove(id: string) {
+    // Remove relações com perguntas primeiro
+    await this.prisma.seccion_has_Question.deleteMany({
+      where: { seccionId: id },
+    });
+    // Agora remove a seção
     return this.prisma.seccion.delete({ where: { id } });
   }
 }

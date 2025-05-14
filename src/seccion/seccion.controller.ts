@@ -30,10 +30,10 @@ export class SeccionController {
     return this.seccionService.findOne(id);
   }
 
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateSeccionDto: UpdateSeccionDto) {
-  //   return this.seccionService.update(id, updateSeccionDto);
-  // }
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateSeccionDto: UpdateSeccionDto) {
+    return this.seccionService.update(id, updateSeccionDto);
+  }
 
   @Delete(':id')
   remove(@Param('id') id: string) {

@@ -10,6 +10,7 @@ import {
 import { EvaluationService } from './evaluation.service';
 import { CreateEvaluationDto } from './dto/create-evaluation.dto';
 import { UpdateEvaluationDto } from './dto/update-evaluation.dto';
+import { StartEvaluationDto } from './dto/start-evaluation.dto';
 
 @Controller('evaluation')
 export class EvaluationController {
@@ -41,5 +42,10 @@ export class EvaluationController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.evaluationService.remove(id);
+  }
+
+  @Post('start')
+  startEvaluation(@Body() data: StartEvaluationDto) {
+    return this.evaluationService.startEvaluation(data);
   }
 }

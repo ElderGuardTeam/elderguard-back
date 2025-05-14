@@ -1,4 +1,4 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsArray } from 'class-validator';
 export class CreateEvaluationDto {
   @IsString()
   title: string;
@@ -6,4 +6,7 @@ export class CreateEvaluationDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsArray()
+  formsIds: string[];
 }
