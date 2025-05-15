@@ -36,27 +36,14 @@ export class FormService {
     const seccionIds: string[] = [];
     if (seccions && Array.isArray(seccions)) {
       for (const seccionDto of seccions) {
-        const { questionsIds: seccionQuestionsIds, ...seccionData } =
-          seccionDto;
         // Cria a seção
         const seccion = await this.seccionService.create({
-          ...seccionData,
+          ...seccionDto,
           formId: form.id,
-          questionsIds: seccionQuestionsIds ?? [],
         });
         seccionIds.push(seccion.id);
 
         // Associa perguntas à seção
-        if (seccionQuestionsIds && Array.isArray(seccionQuestionsIds)) {
-          for (const questionId of seccionQuestionsIds) {
-            await this.prisma.seccion_has_Question.create({
-              data: {
-                seccionId: seccion.id,
-                questionId,
-              },
-            });
-          }
-        }
       }
       // Atualize o formulário para conectar as seções criadas
       await this.prisma.form.update({

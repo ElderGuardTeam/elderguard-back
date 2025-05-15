@@ -19,7 +19,7 @@ export class SeccionService {
         data: { ...{ ...dto, ruleId: rule.id, rule: undefined } },
       });
     }
-    const { rule, ...rest } = dto;
+    const { rule, questionsIds, ...rest } = dto;
     const seccion = await this.prisma.seccion.create({ data: rest });
 
     for (const question of dto.questionsIds) {
