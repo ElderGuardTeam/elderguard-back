@@ -42,7 +42,7 @@ export class FormService {
         const seccion = await this.seccionService.create({
           ...seccionData,
           formId: form.id,
-          questionsIds: questionsIds,
+          questionsIds: seccionQuestionsIds ?? [],
         });
         seccionIds.push(seccion.id);
 
