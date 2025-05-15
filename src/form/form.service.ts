@@ -76,7 +76,12 @@ export class FormService {
   async findAll() {
     return this.prisma.form.findMany({
       include: {
-        seccions: true,
+        seccions: {
+          include: {
+            questionsRel: true,
+            rule: true,
+          },
+        },
         rule: true,
       },
     });
@@ -86,7 +91,12 @@ export class FormService {
     return this.prisma.form.findUnique({
       where: { id },
       include: {
-        seccions: true,
+        seccions: {
+          include: {
+            questionsRel: true,
+            rule: true,
+          },
+        },
         rule: true,
       },
     });
