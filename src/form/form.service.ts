@@ -21,7 +21,7 @@ export class FormService {
       ruleId = rule.id;
     }
 
-    const { rule, seccions, ...rest } = dto;
+    const { rule, seccions, questionsIds, ...rest } = dto;
 
     // 1. Crie o formulário primeiro
     const form = await this.prisma.form.create({
@@ -32,15 +32,31 @@ export class FormService {
       include: { seccions: true, rule: true },
     });
 
-    // 2. Crie as seções associando o formId
+    // 2. Crie as seções associando o formId e associe perguntas às seções
     const seccionIds: string[] = [];
-    if (dto.seccions && Array.isArray(dto.seccions)) {
-      for (const seccionDto of dto.seccions) {
+    if (seccions && Array.isArray(seccions)) {
+      for (const seccionDto of seccions) {
+        const { questionsIds: seccionQuestionsIds, ...seccionData } =
+          seccionDto;
+        // Cria a seção
         const seccion = await this.seccionService.create({
-          ...seccionDto,
-          formId: form.id, // Passe o formId aqui!
+          ...seccionData,
+          formId: form.id,
+          questionsIds: questionsIds,
         });
         seccionIds.push(seccion.id);
+
+        // Associa perguntas à seção
+        if (seccionQuestionsIds && Array.isArray(seccionQuestionsIds)) {
+          for (const questionId of seccionQuestionsIds) {
+            await this.prisma.seccion_has_Question.create({
+              data: {
+                seccionId: seccion.id,
+                questionId,
+              },
+            });
+          }
+        }
       }
       // Atualize o formulário para conectar as seções criadas
       await this.prisma.form.update({
@@ -53,13 +69,15 @@ export class FormService {
       });
     }
 
-    // 3. Associe as perguntas
-    let index: number = 0;
-    for (const question of dto.questionsIds) {
-      await this.prisma.form_has_Question.create({
-        data: { formId: form.id, questionId: question, index },
-      });
-      index++;
+    // 3. Associe as perguntas ao formulário (Form_has_Question)
+    if (questionsIds && Array.isArray(questionsIds)) {
+      let index = 0;
+      for (const questionId of questionsIds) {
+        await this.prisma.form_has_Question.create({
+          data: { formId: form.id, questionId, index },
+        });
+        index++;
+      }
     }
 
     return this.prisma.form.findUnique({
