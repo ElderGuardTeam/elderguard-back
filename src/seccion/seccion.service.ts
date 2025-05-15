@@ -14,9 +14,10 @@ export class SeccionService {
 
   async create(dto: CreateSeccionDto) {
     if (dto.rule) {
-      const rule = await this.ruleService.create(dto.rule);
+      const ruledto = await this.ruleService.create(dto.rule);
+      const { questionsIds, rule, ...rest } = dto;
       const seccion = await this.prisma.seccion.create({
-        data: { ...{ ...dto, ruleId: rule.id, rule: undefined } },
+        data: { ...rest, ruleId: ruledto.id },
       });
     }
     const { rule, questionsIds, ...rest } = dto;
