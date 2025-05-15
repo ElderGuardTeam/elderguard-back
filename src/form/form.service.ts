@@ -83,6 +83,7 @@ export class FormService {
           },
         },
         rule: true,
+        questionsRel: true,
       },
     });
   }
@@ -98,6 +99,7 @@ export class FormService {
           },
         },
         rule: true,
+        questionsRel: true,
       },
     });
   }
