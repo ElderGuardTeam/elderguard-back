@@ -21,28 +21,39 @@ export class FormService {
       ruleId = rule.id;
     }
 
-    const seccionIds: string[] = [];
-    if (dto.seccions && Array.isArray(dto.seccions)) {
-      for (const seccionDto of dto.seccions) {
-        const seccion = await this.seccionService.create(seccionDto);
-        seccionIds.push(seccion.id);
-      }
-    }
-
     const { rule, seccions, ...rest } = dto;
 
+    // 1. Crie o formulário primeiro
     const form = await this.prisma.form.create({
       data: {
         ...rest,
         ...(ruleId && { ruleId }),
-        ...(seccionIds.length && {
-          seccions: {
-            connect: seccionIds.map((id) => ({ id })),
-          },
-        }),
       },
       include: { seccions: true, rule: true },
     });
+
+    // 2. Crie as seções associando o formId
+    const seccionIds: string[] = [];
+    if (dto.seccions && Array.isArray(dto.seccions)) {
+      for (const seccionDto of dto.seccions) {
+        const seccion = await this.seccionService.create({
+          ...seccionDto,
+          formId: form.id, // Passe o formId aqui!
+        });
+        seccionIds.push(seccion.id);
+      }
+      // Atualize o formulário para conectar as seções criadas
+      await this.prisma.form.update({
+        where: { id: form.id },
+        data: {
+          seccions: {
+            connect: seccionIds.map((id) => ({ id })),
+          },
+        },
+      });
+    }
+
+    // 3. Associe as perguntas
     let index: number = 0;
     for (const question of dto.questionsIds) {
       await this.prisma.form_has_Question.create({
@@ -50,6 +61,11 @@ export class FormService {
       });
       index++;
     }
+
+    return this.prisma.form.findUnique({
+      where: { id: form.id },
+      include: { seccions: true, rule: true },
+    });
   }
 
   async findAll() {

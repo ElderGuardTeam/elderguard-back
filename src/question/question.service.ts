@@ -64,6 +64,7 @@ export class QuestionService {
             ],
           }
         : undefined,
+      include: { options: true }, // <-- Adicione esta linha
     });
   }
 
