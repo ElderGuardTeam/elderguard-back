@@ -75,14 +75,32 @@ export class FormService {
 
   async findAll() {
     return this.prisma.form.findMany({
-      include: { seccions: true, rule: true },
+      include: {
+        seccions: {
+          include: {
+            questionsRel: true,
+            rule: true,
+          },
+        },
+        rule: true,
+        questionsRel: true,
+      },
     });
   }
 
   async findOne(id: string) {
     return this.prisma.form.findUnique({
       where: { id },
-      include: { seccions: true, rule: true },
+      include: {
+        seccions: {
+          include: {
+            questionsRel: true,
+            rule: true,
+          },
+        },
+        rule: true,
+        questionsRel: true,
+      },
     });
   }
 
