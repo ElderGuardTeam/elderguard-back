@@ -78,12 +78,20 @@ export class FormService {
       include: {
         seccions: {
           include: {
-            questionsRel: true,
+            questionsRel: {
+              include: {
+                question: true, // Inclui os dados completos da questão
+              },
+            },
             rule: true,
           },
         },
         rule: true,
-        questionsRel: true,
+        questionsRel: {
+          include: {
+            question: true, // Inclui os dados completos da questão
+          },
+        },
       },
     });
   }
@@ -94,12 +102,20 @@ export class FormService {
       include: {
         seccions: {
           include: {
-            questionsRel: true,
+            questionsRel: {
+              include: {
+                question: true, // Inclui os dados completos da questão
+              },
+            },
             rule: true,
           },
         },
         rule: true,
-        questionsRel: true,
+        questionsRel: {
+          include: {
+            question: true, // Inclui os dados completos da questão
+          },
+        },
       },
     });
   }
