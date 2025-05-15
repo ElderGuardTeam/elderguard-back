@@ -32,11 +32,30 @@ export class SeccionService {
   }
 
   async findAll() {
-    return this.prisma.seccion.findMany();
+    return this.prisma.seccion.findMany({
+      include: {
+        rule: true,
+        questionsRel: {
+          include: {
+            question: true,
+          },
+        },
+      },
+    });
   }
 
   async findOne(id: string) {
-    return this.prisma.seccion.findUnique({ where: { id } });
+    return this.prisma.seccion.findUnique({
+      where: { id },
+      include: {
+        rule: true,
+        questionsRel: {
+          include: {
+            question: true,
+          },
+        },
+      },
+    });
   }
 
   async update(id: string, dto: UpdateSeccionDto) {
