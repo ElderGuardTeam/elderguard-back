@@ -19,6 +19,12 @@ export class SeccionService {
       const seccion = await this.prisma.seccion.create({
         data: { ...rest, ruleId: ruledto.id },
       });
+      for (const question of dto.questionsIds) {
+        await this.prisma.seccion_has_Question.create({
+          data: { seccionId: seccion.id, questionId: question },
+        });
+      }
+      return seccion;
     }
     const { rule, questionsIds, ...rest } = dto;
     const seccion = await this.prisma.seccion.create({ data: rest });
