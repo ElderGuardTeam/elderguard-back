@@ -64,14 +64,14 @@ export class QuestionService {
             ],
           }
         : undefined,
-      include: { options: true }, // <-- Adicione esta linha
+      include: { options: true, rule: true }, // <-- Adicione esta linha
     });
   }
 
   async findOne(id: string) {
     return await this.prisma.question.findUnique({
       where: { id },
-      include: { options: true },
+      include: { options: true, rule: true },
     });
   }
 
