@@ -169,6 +169,13 @@ enum UserType {
   TECH_PROFESSIONAL
 }
 
+enum EvaluationAnswareStatus {
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+  CANCELLED // Opcional, mas pode ser útil
+}
+
 enum QuestionType {
   TEXT
   NUMBER
@@ -258,16 +265,18 @@ model FormAnsware {
   form                Form              @relation(fields: [formId], references: [id])
   idoso               Elderly           @relation(fields: [elderlyId], references: [id])
   professional        Professional      @relation(fields: [techProfessionalId], references: [id])
-  questionsAnswares   QuestionAnswer[]
+  questionsAnswares   QuestionAnswer[] // Considere adicionar onDelete: Cascade aqui se QuestionAnswer não deve existir sem FormAnsware
   created             DateTime          @default(now())
   updated             DateTime          @updatedAt
+
+  @@unique([evaluationAnswareId, formId]) // Para facilitar o upsert de FormAnsware
 }
 
 model Evaluation {
   id          String                @id @default(uuid())
   title       String
   description String?
-  formsRel    Evaluation_has_Form[]
+  formsRel    Evaluation_has_Form[] // Considere onDelete: Cascade se Evaluation_has_Form não deve existir sem Evaluation
   created     DateTime              @default(now())
   updated     DateTime              @updatedAt
 
@@ -288,10 +297,30 @@ model Evaluation_has_Form {
 model EvaluationAnsware {
   id           String        @id @default(uuid())
   evaluationId String
-  dateAnsware  DateTime      @default(now())
+  startedAt    DateTime      @default(now()) // Renomeado de dateAnsware
+  completedAt  DateTime? // Data de conclusão da avaliação
+  status       EvaluationAnswareStatus @default(IN_PROGRESS) // Status da avaliação
   scoreTotal   Float?
   evaluation   Evaluation    @relation(fields: [evaluationId], references: [id])
-  formAnswares FormAnsware[]
+  formAnswares FormAnsware[] // onDelete: Cascade aqui garante que FormAnswares são deletados se EvaluationAnsware for deletada
   created      DateTime      @default(now())
   updated      DateTime      @updatedAt
 }
+
+// Recomendações de onDelete: Cascade para integridade referencial (opcional, mas bom)
+// model FormAnsware {
+//   evaluationAnsware   EvaluationAnsware @relation(fields: [evaluationAnswareId], references: [id], onDelete: Cascade)
+// }
+
+// model QuestionAnswer {
+//   formAnsware      FormAnsware    @relation(fields: [formAnswareId], references: [id], onDelete: Cascade)
+// }
+
+// model OptionAnswer {
+//   questionAnswer   QuestionAnswer @relation(fields: [questionAnswerId], references: [id], onDelete: Cascade)
+// }
+
+// model Evaluation_has_Form {
+//   evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+//   form         Form       @relation(fields: [formId], references: [id], onDelete: Cascade) // Ou apenas no evaluationId
+// }
