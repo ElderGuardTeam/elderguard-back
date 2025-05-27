@@ -123,8 +123,15 @@ export class FormService {
   async update(id: string, dto: UpdateFormDto) {
     let ruleId: string | undefined = undefined;
     if (dto.rule) {
-      const rule = await this.ruleService.create(dto.rule);
-      ruleId = rule.id;
+      if (dto.rule.id) {
+        // Atualiza a regra existente
+        const rule = await this.ruleService.update(dto.rule.id, dto.rule);
+        ruleId = rule.id;
+      } else {
+        // Cria uma nova regra
+        const rule = await this.ruleService.create(dto.rule);
+        ruleId = rule.id;
+      }
     }
 
     if (dto.seccions && Array.isArray(dto.seccions)) {

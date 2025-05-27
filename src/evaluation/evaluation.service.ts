@@ -11,10 +11,15 @@ export class EvaluationService {
     private prisma: PrismaService,
     private elderlyService: ElderlyService,
   ) {}
+
   async create(dto: CreateEvaluationDto) {
-    const evaluation = await this.prisma.evaluation.create({ data: dto });
+    const { formsIds, ...evaluationData } = dto;
+    const evaluation = await this.prisma.evaluation.create({
+      data: evaluationData,
+    });
+
     let index: number = 0;
-    for (const form of dto.formsIds) {
+    for (const form of formsIds) {
       await this.prisma.evaluation_has_Form.create({
         data: { evaluationId: evaluation.id, formId: form, order: index },
       });
