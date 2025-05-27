@@ -1,21 +1,25 @@
-import { IsInt, IsOptional, ValidateNested, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
-class FormAnswInput {
-  @IsInt()
-  formId: string;
+import {
+  IsArray,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsUUID,
+  ValidateNested,
+} from 'class-validator';
+import { CreateFormAnswareNestedDto } from './create-form-answare-nested.dto';
 
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => Object)
-  questionAnswares: any[];
-}
 export class CreateEvaluationAnswareDto {
-  @IsInt()
+  @IsUUID()
+  @IsNotEmpty()
   evaluationId: string;
 
-  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => FormAnswInput)
-  forms: FormAnswInput[];
+  @Type(() => CreateFormAnswareNestedDto)
+  formAnswares: CreateFormAnswareNestedDto[];
+
+  @IsNumber()
+  @IsOptional()
+  scoreTotal?: number; // Opcional: será calculado no backend
 }
