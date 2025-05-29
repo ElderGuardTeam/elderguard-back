@@ -95,7 +95,7 @@ model Question {
   updated        DateTime               @updatedAt
   options        Option[]
   ruleId         String?
-  rule           Rule?                  @relation(fields: [ruleId], references: [id])
+  rule           Rule?                  @relation(fields: [ruleId], references: [id], onDelete: Cascade)
   formRel        Form_has_Question[]
   seccionRel     Seccion_has_Question[]
   QuestionAnswer QuestionAnswer[]
