@@ -27,9 +27,15 @@ export class EvaluationService {
     }
     return evaluation;
   }
-
-  async findAll() {
-    return this.prisma.evaluation.findMany();
+  async findAll(search?: string) {
+    return this.prisma.evaluation.findMany({
+      where: search
+        ? {
+            OR: [{ title: { contains: search } }],
+          }
+        : undefined,
+      include: { formsRel: true },
+    });
   }
 
   async findOne(id: string) {

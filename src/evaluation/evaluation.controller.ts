@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { EvaluationService } from './evaluation.service';
 import { CreateEvaluationDto } from './dto/create-evaluation.dto';
@@ -22,8 +23,8 @@ export class EvaluationController {
   }
 
   @Get()
-  findAll() {
-    return this.evaluationService.findAll();
+  findAll(@Query('search') search?: string) {
+    return this.evaluationService.findAll(search);
   }
 
   @Get(':id')
