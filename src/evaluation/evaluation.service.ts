@@ -34,6 +34,9 @@ export class EvaluationService {
             OR: [{ title: { contains: search } }],
           }
         : undefined,
+      orderBy: {
+        created: 'desc',
+      },
       include: { formsRel: true },
     });
   }

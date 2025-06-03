@@ -126,6 +126,9 @@ export class QuestionService {
             ],
           }
         : undefined,
+      orderBy: {
+        created: 'desc',
+      },
       include: { options: true, rule: true }, // <-- Adicione esta linha
     });
   }

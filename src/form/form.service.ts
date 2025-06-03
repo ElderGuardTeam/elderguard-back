@@ -131,6 +131,9 @@ export class FormService {
 
   async findAll() {
     return this.prisma.form.findMany({
+      orderBy: {
+        created: 'desc',
+      },
       include: {
         seccions: {
           include: {
@@ -160,7 +163,7 @@ export class FormService {
           include: {
             questionsRel: {
               include: {
-                question: true, // Inclui os dados completos da questão
+                question: { include: { options: true } }, // Inclui os dados completos da questão e suas opções
               },
             },
             rule: true,
