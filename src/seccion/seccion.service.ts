@@ -1,5 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateSeccionDto } from './dto/create-seccion.dto';
 import { UpdateSeccionDto } from './dto/update-seccion.dto';
 import { PrismaService } from 'src/database/prisma.service';
@@ -7,32 +10,83 @@ import { RuleService } from 'src/rule/rule.service';
 
 @Injectable()
 export class SeccionService {
+  private readonly logger = new Logger(SeccionService.name);
+
   constructor(
     private prisma: PrismaService,
     private ruleService: RuleService,
   ) {}
 
+  private areAllRuleFieldsNull(ruleDto: any): boolean {
+    if (!ruleDto || typeof ruleDto !== 'object') {
+      return true;
+    }
+    const values = Object.values(ruleDto);
+    if (values.length === 0) {
+      return true;
+    }
+    return values.every((value) => value === null);
+  }
+
   async create(dto: CreateSeccionDto) {
+    this.logger.debug(
+      `Attempting to create seccion with data: ${JSON.stringify(dto)}`,
+    );
+    let ruleIdToLink: string | undefined = undefined;
+
     if (dto.rule) {
-      const ruledto = await this.ruleService.create(dto.rule);
-      const { questionsIds, rule, ...rest } = dto;
-      const seccion = await this.prisma.seccion.create({
-        data: { ...rest, ruleId: ruledto.id },
-      });
-      for (const question of dto.questionsIds) {
+      if (!this.areAllRuleFieldsNull(dto.rule)) {
+        this.logger.debug(
+          `Rule data provided for seccion and is not all nulls. Attempting to create rule: ${JSON.stringify(dto.rule)}`,
+        );
+        try {
+          const createdRule = await this.ruleService.create(dto.rule);
+          if (createdRule && createdRule.id) {
+            ruleIdToLink = createdRule.id;
+            this.logger.debug(
+              `Rule created successfully with ID: ${ruleIdToLink}`,
+            );
+          } else if (createdRule) {
+            this.logger.warn(
+              `Rule service returned a rule object without an ID for rule data: ${JSON.stringify(dto.rule)}. Seccion title: '${dto.title}'. Proceeding without linking rule.`,
+            );
+          } else {
+            this.logger.log(
+              `Rule service returned null/undefined for rule data: ${JSON.stringify(dto.rule)}. Seccion title: '${dto.title}'. Proceeding without linking rule.`,
+            );
+          }
+        } catch (error) {
+          this.logger.error(
+            `Error creating rule for seccion '${dto.title}' with rule data ${JSON.stringify(dto.rule)}: ${error.message}`,
+            error.stack,
+          );
+          throw error;
+        }
+      } else {
+        this.logger.log(
+          `Rule data provided for seccion '${dto.title}' but all fields were null or object was empty. Skipping rule creation. Rule data: ${JSON.stringify(dto.rule)}`,
+        );
+      }
+    }
+
+    const { rule, questionsIds, ...rest } = dto;
+    const seccionData: any = { ...rest };
+    if (ruleIdToLink) {
+      seccionData.ruleId = ruleIdToLink;
+    }
+
+    const seccion = await this.prisma.seccion.create({ data: seccionData });
+    this.logger.log(`Seccion created with ID: ${seccion.id}`);
+
+    if (questionsIds && Array.isArray(questionsIds)) {
+      this.logger.debug(
+        `Associating ${questionsIds.length} questions to seccion ID: ${seccion.id}`,
+      );
+      for (const questionId of questionsIds) {
         await this.prisma.seccion_has_Question.create({
-          data: { seccionId: seccion.id, questionId: question },
+          data: { seccionId: seccion.id, questionId: questionId },
         });
       }
-      return seccion;
-    }
-    const { rule, questionsIds, ...rest } = dto;
-    const seccion = await this.prisma.seccion.create({ data: rest });
-
-    for (const question of dto.questionsIds) {
-      await this.prisma.seccion_has_Question.create({
-        data: { seccionId: seccion.id, questionId: question },
-      });
     }
     return seccion;
   }
