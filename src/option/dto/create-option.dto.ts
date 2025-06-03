@@ -1,9 +1,9 @@
-import { IsInt, IsNotEmpty, IsString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateOptionDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  description: string;
+  description?: string;
 
   @IsString()
   @IsNotEmpty()
