@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CreateFormDto } from './dto/create-form.dto';
 import { UpdateFormDto } from './dto/update-form.dto';
 import { PrismaService } from 'src/database/prisma.service';
@@ -8,17 +10,65 @@ import { RuleService } from 'src/rule/rule.service';
 
 @Injectable()
 export class FormService {
+  private readonly logger = new Logger(FormService.name);
+
   constructor(
     private prisma: PrismaService,
     private seccionService: SeccionService,
     private ruleService: RuleService,
   ) {}
 
+  private areAllRuleFieldsNull(ruleDto: any): boolean {
+    if (!ruleDto || typeof ruleDto !== 'object') {
+      return true; // Considera não objeto ou nulo como "todos os campos nulos"
+    }
+    const values = Object.values(ruleDto);
+    if (values.length === 0) {
+      return true; // Considera objeto vazio como "todos os campos nulos"
+    }
+    return values.every((value) => value === null);
+  }
+
   async create(dto: CreateFormDto) {
-    let ruleId: string | undefined = undefined;
+    this.logger.debug(
+      `Attempting to create form with data: ${JSON.stringify(dto)}`,
+    );
+    let ruleIdToLink: string | undefined = undefined;
+
+    // Verifica se dto.rule existe e se não tem todos os seus valores como null
     if (dto.rule) {
-      const rule = await this.ruleService.create(dto.rule);
-      ruleId = rule.id;
+      if (!this.areAllRuleFieldsNull(dto.rule)) {
+        this.logger.debug(
+          `Rule data provided for form and is not all nulls. Attempting to create rule: ${JSON.stringify(dto.rule)}`,
+        );
+        try {
+          const createdRule = await this.ruleService.create(dto.rule);
+          if (createdRule && createdRule.id) {
+            ruleIdToLink = createdRule.id;
+            this.logger.debug(
+              `Rule created successfully with ID: ${ruleIdToLink}`,
+            );
+          } else if (createdRule) {
+            this.logger.warn(
+              `Rule service returned a rule object without an ID for rule data: ${JSON.stringify(dto.rule)}. Form title: '${dto.title}'. Proceeding without linking rule.`,
+            );
+          } else {
+            this.logger.log(
+              `Rule service returned null/undefined for rule data: ${JSON.stringify(dto.rule)}. Form title: '${dto.title}'. Proceeding without linking rule.`,
+            );
+          }
+        } catch (error) {
+          this.logger.error(
+            `Error creating rule for form '${dto.title}' with rule data ${JSON.stringify(dto.rule)}: ${error.message}`,
+            error.stack,
+          );
+          throw error;
+        }
+      } else {
+        this.logger.log(
+          `Rule data provided for form '${dto.title}' but all fields were null or object was empty. Skipping rule creation. Rule data: ${JSON.stringify(dto.rule)}`,
+        );
+      }
     }
 
     const { rule, seccions, questionsIds, ...rest } = dto;
@@ -27,7 +77,7 @@ export class FormService {
     const form = await this.prisma.form.create({
       data: {
         ...rest,
-        ...(ruleId && { ruleId }),
+        ...(ruleIdToLink && { ruleId: ruleIdToLink }),
       },
       include: { seccions: true, rule: true },
     });
@@ -35,6 +85,9 @@ export class FormService {
     // 2. Crie as seções associando o formId e associe perguntas às seções
     const seccionIds: string[] = [];
     if (seccions && Array.isArray(seccions)) {
+      this.logger.debug(
+        `Processing ${seccions.length} sections for form ID: ${form.id}`,
+      );
       for (const seccionDto of seccions) {
         // Cria a seção
         const seccion = await this.seccionService.create({
@@ -42,8 +95,6 @@ export class FormService {
           formId: form.id,
         });
         seccionIds.push(seccion.id);
-
-        // Associa perguntas à seção
       }
       // Atualize o formulário para conectar as seções criadas
       await this.prisma.form.update({
@@ -58,6 +109,9 @@ export class FormService {
 
     // 3. Associe as perguntas ao formulário (Form_has_Question)
     if (questionsIds && Array.isArray(questionsIds)) {
+      this.logger.debug(
+        `Associating ${questionsIds.length} questions to form ID: ${form.id}`,
+      );
       let index = 0;
       for (const questionId of questionsIds) {
         await this.prisma.form_has_Question.create({
@@ -67,10 +121,12 @@ export class FormService {
       }
     }
 
-    return this.prisma.form.findUnique({
+    const createdForm = await this.prisma.form.findUnique({
       where: { id: form.id },
       include: { seccions: true, rule: true },
     });
+    this.logger.log(`Form created successfully with ID: ${form.id}`);
+    return createdForm;
   }
 
   async findAll() {
