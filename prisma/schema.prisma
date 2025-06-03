@@ -20,8 +20,8 @@ model Elderly {
   email          String           @default("")
   dateOfBirth    DateTime
   phone          String
-  contacts       ElderlyContact[]
-  address        Address          @relation(fields: [addressId], references: [id])
+  contacts       ElderlyContact[] // Se Elderly for deletado, ElderlyContact é deletado (veja ElderlyContact.elderlyId)
+  address        Address          @relation(fields: [addressId], references: [id]) // Se Address for deletado, Elderly com esse addressId não pode existir (Restrict por padrão, OK)
   addressId      String
   sex            String
   weight         Float
@@ -29,11 +29,11 @@ model Elderly {
   imc            Float
   education      String
   socialeconomic String
-  user           User             @relation(fields: [userId], references: [id])
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade) // Se User for deletado, Elderly associado é deletado
   userId         String           @unique
   created        DateTime         @default(now())
   updated        DateTime         @updatedAt
-  FormAnsware    FormAnsware[]
+  FormAnsware    FormAnsware[] // Se Elderly for deletado, FormAnsware é deletado (veja FormAnsware.elderlyId)
 }
 
 model Address {
@@ -45,8 +45,8 @@ model Address {
   city         String
   state        String
   zipCode      String
-  Elderly      Elderly[]
-  Contact      Contact[]
+  Elderly      Elderly[] // Se um Endereço for deletado, o default é Restrict, o que é bom.
+  Contact      Contact[] // Se um Endereço for deletado, o default é Restrict.
   created      DateTime  @default(now())
   updated      DateTime  @updatedAt
 }
@@ -57,9 +57,9 @@ model Contact {
   phone     String
   email     String
   cpf       String           @unique
-  address   Address          @relation(fields: [addressId], references: [id])
+  address   Address          @relation(fields: [addressId], references: [id]) // Se Address for deletado, Contact com esse addressId não pode existir (Restrict por padrão, OK)
   addressId String
-  elderly   ElderlyContact[]
+  elderly   ElderlyContact[] // Se Contact for deletado, ElderlyContact é deletado (veja ElderlyContact.contactId)
   created   DateTime         @default(now())
   updated   DateTime         @updatedAt
 }
@@ -67,8 +67,8 @@ model Contact {
 model ElderlyContact {
   elderlyId String
   contactId String
-  elderly   Elderly @relation(fields: [elderlyId], references: [id])
-  contact   Contact @relation(fields: [contactId], references: [id])
+  elderly   Elderly @relation(fields: [elderlyId], references: [id], onDelete: Cascade) // Se Elderly for deletado, esta entrada de junção é deletada
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade) // Se Contact for deletado, esta entrada de junção é deletada
 
   @@id([elderlyId, contactId])
 }
@@ -79,40 +79,38 @@ model Professional {
   name        String
   phone       String
   email       String
-  user        User          @relation(fields: [userId], references: [id])
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade) // Se User for deletado, Professional associado é deletado
   userId      String        @unique
   created     DateTime      @default(now())
   updated     DateTime      @updatedAt
-  FormAnsware FormAnsware[]
+  FormAnsware FormAnsware[] // Se Professional for deletado, FormAnsware é deletado (veja FormAnsware.techProfessionalId)
 }
 
 model Question {
   id             String                 @id @default(uuid())
   title          String
-  description    String
+  description    String?
   type           QuestionType
   created        DateTime               @default(now())
   updated        DateTime               @updatedAt
-  options        Option[]
+  options        Option[] // Se Question for deletada, suas Options são deletadas (veja Option.questionId)
   ruleId         String?
-  rule           Rule?                  @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  formRel        Form_has_Question[]
-  seccionRel     Seccion_has_Question[]
-  QuestionAnswer QuestionAnswer[]
+  rule           Rule?                  @relation(fields: [ruleId], references: [id], onDelete: Cascade) // Se Rule for deletada, esta Question é deletada (conforme seu schema original)
+  formRel        Form_has_Question[] // Se Question for deletada, suas relações com Form são deletadas (veja Form_has_Question.questionId)
+  seccionRel     Seccion_has_Question[] // Se Question for deletada, suas relações com Seccion são deletadas (veja Seccion_has_Question.questionId)
+  QuestionAnswer QuestionAnswer[] // Se Question for deletada, suas QuestionAnswers são deletadas (veja QuestionAnswer.questionId)
 }
 
 model Option {
-  id          String   @id @default(uuid())
-  description String
-  score       Int
-  question    Question @relation(fields: [questionId], references: [id])
-  questionId  String
-  created     DateTime @default(now())
-  updated     DateTime @updatedAt
-
-  OptionAnswer OptionAnswer[]
-
-  QuestionAnswer QuestionAnswer[]
+  id             String           @id @default(uuid())
+  description    String?
+  score          Int
+  question       Question         @relation(fields: [questionId], references: [id], onDelete: Cascade) // Se Question for deletada, esta Option é deletada
+  questionId     String
+  created        DateTime         @default(now())
+  updated        DateTime         @updatedAt
+  OptionAnswer   OptionAnswer[] // Se Option for deletada, suas OptionAnswers são deletadas (veja OptionAnswer.optionId)
+  QuestionAnswer QuestionAnswer[] // Se Option for deletada, QuestionAnswer.selectedOptionId se tornará null (onDelete: SetNull por padrão para campos opcionais)
 }
 
 model OptionAnswer {
@@ -121,9 +119,9 @@ model OptionAnswer {
   answerText       String?
   answerNumber     Float?
   answerBoolean    Boolean?
-  option           Option         @relation(fields: [optionId], references: [id])
+  option           Option         @relation(fields: [optionId], references: [id], onDelete: Cascade) // Se Option for deletada, esta OptionAnswer é deletada
   optionId         String
-  questionAnswer   QuestionAnswer @relation(fields: [questionAnswerId], references: [id])
+  questionAnswer   QuestionAnswer @relation(fields: [questionAnswerId], references: [id], onDelete: Cascade) // Se QuestionAnswer for deletada, esta OptionAnswer é deletada
   questionAnswerId String
   created          DateTime       @default(now())
   updated          DateTime       @updatedAt
@@ -131,20 +129,20 @@ model OptionAnswer {
 
 model QuestionAnswer {
   id               String         @id @default(uuid())
-  question         Question       @relation(fields: [questionId], references: [id])
+  question         Question       @relation(fields: [questionId], references: [id], onDelete: Cascade) // Se Question for deletada, esta QuestionAnswer é deletada
   questionId       String
-  formAnsware      FormAnsware    @relation(fields: [formAnswareId], references: [id])
+  formAnsware      FormAnsware    @relation(fields: [formAnswareId], references: [id], onDelete: Cascade) // Se FormAnsware for deletado, esta QuestionAnswer é deletada
   formAnswareId    String
   answerText       String?
   answerNumber     Float?
   answerImage      String?
   answerBoolean    Boolean?
   selectedOptionId String?
-  selectedOption   Option?        @relation(fields: [selectedOptionId], references: [id])
+  selectedOption   Option?        @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull) // Se Option for deletada, selectedOptionId se torna null
   score            Int?
   created          DateTime       @default(now())
   updated          DateTime       @updatedAt
-  optionAnswers    OptionAnswer[]
+  optionAnswers    OptionAnswer[] // Se QuestionAnswer for deletada, suas OptionAnswers são deletadas (veja OptionAnswer.questionAnswerId)
 }
 
 model User {
@@ -159,8 +157,8 @@ model User {
   mustChangePassword Boolean       @default(true)
   created            DateTime      @default(now())
   updated            DateTime      @updatedAt
-  elderly            Elderly?
-  professional       Professional?
+  elderly            Elderly? // Se User for deletado, Elderly associado é deletado (veja Elderly.userId)
+  professional       Professional? // Se User for deletado, Professional associado é deletado (veja Professional.userId)
 }
 
 enum UserType {
@@ -173,7 +171,7 @@ enum EvaluationAnswareStatus {
   IN_PROGRESS
   PAUSED
   COMPLETED
-  CANCELLED // Opcional, mas pode ser útil
+  CANCELLED
 }
 
 enum QuestionType {
@@ -196,12 +194,12 @@ model Form {
   title               String
   type                String?
   description         String?
-  seccions            Seccion[]
-  questionsRel        Form_has_Question[]
-  FormAnsware         FormAnsware[]
-  Evaluation_has_Form Evaluation_has_Form[]
+  seccions            Seccion[] // Se Form for deletado, suas Seccions são deletadas (veja Seccion.formId)
+  questionsRel        Form_has_Question[] // Se Form for deletado, suas relações Form_has_Question são deletadas (veja Form_has_Question.formId)
+  FormAnsware         FormAnsware[] // Por padrão, deletar um Form não deleta FormAnsware (Restrict). Isso é geralmente bom para manter o histórico de respostas. Se quiser deletar, adicione onDelete: Cascade em FormAnsware.formId
+  Evaluation_has_Form Evaluation_has_Form[] // Se Form for deletado, suas relações Evaluation_has_Form são deletadas (veja Evaluation_has_Form.formId)
   ruleId              String?
-  rule                Rule?                 @relation(fields: [ruleId], references: [id])
+  rule                Rule?                 @relation(fields: [ruleId], references: [id], onDelete: SetNull) // Se Rule for deletada, form.ruleId se torna null
   created             DateTime              @default(now())
   updated             DateTime              @updatedAt
 }
@@ -210,8 +208,8 @@ model Form_has_Question {
   formId     String
   questionId String
   index      Int
-  form       Form     @relation(fields: [formId], references: [id])
-  question   Question @relation(fields: [questionId], references: [id])
+  form       Form     @relation(fields: [formId], references: [id], onDelete: Cascade) // Se Form for deletado, esta entrada de junção é deletada
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade) // Se Question for deletada, esta entrada de junção é deletada
 
   @@id([formId, questionId])
 }
@@ -221,9 +219,9 @@ model Seccion {
   title        String
   ruleId       String?
   formId       String
-  rule         Rule?                  @relation(fields: [ruleId], references: [id])
-  form         Form                   @relation(fields: [formId], references: [id])
-  questionsRel Seccion_has_Question[]
+  rule         Rule?                  @relation(fields: [ruleId], references: [id], onDelete: SetNull) // Se Rule for deletada, seccion.ruleId se torna null
+  form         Form                   @relation(fields: [formId], references: [id], onDelete: Cascade) // Se Form for deletado, esta Seccion é deletada
+  questionsRel Seccion_has_Question[] // Se Seccion for deletada, suas relações Seccion_has_Question são deletadas (veja Seccion_has_Question.seccionId)
   created      DateTime               @default(now())
   updated      DateTime               @updatedAt
 }
@@ -231,8 +229,8 @@ model Seccion {
 model Seccion_has_Question {
   seccionId  String
   questionId String
-  seccion    Seccion  @relation(fields: [seccionId], references: [id])
-  question   Question @relation(fields: [questionId], references: [id])
+  seccion    Seccion  @relation(fields: [seccionId], references: [id], onDelete: Cascade) // Se Seccion for deletada, esta entrada de junção é deletada
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade) // Se Question for deletada, esta entrada de junção é deletada
 
   @@id([seccionId, questionId])
 }
@@ -247,11 +245,11 @@ model Rule {
   value2     Int?
   condition  String?
   operation  String?
-  seccions   Seccion[]
-  questions  Question[]
+  seccions   Seccion[] // Se Rule for deletada, Seccion.ruleId se torna null (onDelete: SetNull em Seccion.rule)
+  questions  Question[] // Se Rule for deletada, Question.ruleId é tratado conforme definido em Question.rule (Cascade no seu caso)
   created    DateTime   @default(now())
   updated    DateTime   @updatedAt
-  Form       Form[]
+  Form       Form[] // Se Rule for deletada, Form.ruleId se torna null (onDelete: SetNull em Form.rule)
 }
 
 model FormAnsware {
@@ -261,66 +259,46 @@ model FormAnsware {
   elderlyId           String
   techProfessionalId  String
   evaluationAnswareId String
-  evaluationAnsware   EvaluationAnsware @relation(fields: [evaluationAnswareId], references: [id])
-  form                Form              @relation(fields: [formId], references: [id])
-  idoso               Elderly           @relation(fields: [elderlyId], references: [id])
-  professional        Professional      @relation(fields: [techProfessionalId], references: [id])
-  questionsAnswares   QuestionAnswer[] // Considere adicionar onDelete: Cascade aqui se QuestionAnswer não deve existir sem FormAnsware
+  evaluationAnsware   EvaluationAnsware @relation(fields: [evaluationAnswareId], references: [id], onDelete: Cascade) // Se EvaluationAnsware for deletada, este FormAnsware é deletado
+  form                Form              @relation(fields: [formId], references: [id]) // Restrict por padrão. Deletar o Form template não deleta as respostas.
+  idoso               Elderly           @relation(fields: [elderlyId], references: [id], onDelete: Cascade) // Se Elderly for deletado, este FormAnsware é deletado
+  professional        Professional      @relation(fields: [techProfessionalId], references: [id], onDelete: Cascade) // Se Professional for deletado, este FormAnsware é deletado
+  questionsAnswares   QuestionAnswer[] // Se FormAnsware for deletado, suas QuestionAnswers são deletadas (veja QuestionAnswer.formAnswareId)
   created             DateTime          @default(now())
   updated             DateTime          @updatedAt
 
-  @@unique([evaluationAnswareId, formId]) // Para facilitar o upsert de FormAnsware
+  @@unique([evaluationAnswareId, formId])
 }
 
 model Evaluation {
-  id          String                @id @default(uuid())
-  title       String
-  description String?
-  formsRel    Evaluation_has_Form[] // Considere onDelete: Cascade se Evaluation_has_Form não deve existir sem Evaluation
-  created     DateTime              @default(now())
-  updated     DateTime              @updatedAt
-
-  EvaluationAnsware EvaluationAnsware[]
+  id                String                @id @default(uuid())
+  title             String
+  description       String?
+  formsRel          Evaluation_has_Form[] // Se Evaluation for deletada, suas relações Evaluation_has_Form são deletadas (veja Evaluation_has_Form.evaluationId)
+  created           DateTime              @default(now())
+  updated           DateTime              @updatedAt
+  EvaluationAnsware EvaluationAnsware[] // Por padrão, deletar uma Evaluation não deleta EvaluationAnsware (Restrict). Bom para manter histórico. Se quiser deletar, adicione onDelete: Cascade em EvaluationAnsware.evaluationId
 }
 
 model Evaluation_has_Form {
   evaluationId String
   formId       String
-  order        Int // posição do formulário dentro da avaliação
-  evaluation   Evaluation @relation(fields: [evaluationId], references: [id])
-  form         Form       @relation(fields: [formId], references: [id])
+  order        Int
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade) // Se Evaluation for deletada, esta entrada de junção é deletada
+  form         Form       @relation(fields: [formId], references: [id], onDelete: Cascade) // Se Form for deletado, esta entrada de junção é deletada
 
   @@id([evaluationId, formId])
 }
 
-// Registro de cada execução/resposta de avaliação
 model EvaluationAnsware {
-  id           String        @id @default(uuid())
+  id           String                  @id @default(uuid())
   evaluationId String
-  startedAt    DateTime      @default(now()) // Renomeado de dateAnsware
-  completedAt  DateTime? // Data de conclusão da avaliação
-  status       EvaluationAnswareStatus @default(IN_PROGRESS) // Status da avaliação
+  startedAt    DateTime                @default(now())
+  completedAt  DateTime?
+  status       EvaluationAnswareStatus @default(IN_PROGRESS)
   scoreTotal   Float?
-  evaluation   Evaluation    @relation(fields: [evaluationId], references: [id])
-  formAnswares FormAnsware[] // onDelete: Cascade aqui garante que FormAnswares são deletados se EvaluationAnsware for deletada
-  created      DateTime      @default(now())
-  updated      DateTime      @updatedAt
+  evaluation   Evaluation              @relation(fields: [evaluationId], references: [id]) // Restrict por padrão. Deletar o Evaluation template não deleta as respostas.
+  formAnswares FormAnsware[] // Se EvaluationAnsware for deletada, seus FormAnswares são deletados (veja FormAnsware.evaluationAnswareId)
+  created      DateTime                @default(now())
+  updated      DateTime                @updatedAt
 }
-
-// Recomendações de onDelete: Cascade para integridade referencial (opcional, mas bom)
-// model FormAnsware {
-//   evaluationAnsware   EvaluationAnsware @relation(fields: [evaluationAnswareId], references: [id], onDelete: Cascade)
-// }
-
-// model QuestionAnswer {
-//   formAnsware      FormAnsware    @relation(fields: [formAnswareId], references: [id], onDelete: Cascade)
-// }
-
-// model OptionAnswer {
-//   questionAnswer   QuestionAnswer @relation(fields: [questionAnswerId], references: [id], onDelete: Cascade)
-// }
-
-// model Evaluation_has_Form {
-//   evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
-//   form         Form       @relation(fields: [formId], references: [id], onDelete: Cascade) // Ou apenas no evaluationId
-// }
