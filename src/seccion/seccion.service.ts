@@ -69,10 +69,15 @@ export class SeccionService {
       }
     }
 
-    const { rule, questionsIds, ...rest } = dto;
+    const { rule, questionsIds, formId, ...rest } = dto;
     const seccionData: any = { ...rest };
     if (ruleIdToLink) {
       seccionData.ruleId = ruleIdToLink;
+    }
+    if (formId) {
+      seccionData.form = { connect: { id: formId } }; // <-- RELAÇÃO CORRETA
+    } else {
+      throw new Error('formId is required to create a seccion');
     }
 
     const seccion = await this.prisma.seccion.create({ data: seccionData });
