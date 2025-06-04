@@ -196,6 +196,17 @@ export class FormService {
     if (dto.seccions && Array.isArray(dto.seccions)) {
       let index = 0;
       for (const seccionDto of dto.seccions) {
+        // Verifica se existe uma regra na seção
+        if (seccionDto.rule) {
+          if (seccionDto.rule.id) {
+            // Atualiza a regra existente da seção
+            await this.ruleService.update(seccionDto.rule.id, seccionDto.rule);
+          } else {
+            // Cria uma nova regra para a seção
+            const createdRule = await this.ruleService.create(seccionDto.rule);
+            seccionDto.ruleId = createdRule.id;
+          }
+        }
         let seccion;
         if (dto.seccionsIds) {
           seccion = await this.seccionService.update(
