@@ -237,11 +237,13 @@ export class FormService {
       data: {
         ...rest,
         ...(ruleId && { ruleId }),
-        ...(dto.seccionsIds.length && {
-          seccions: {
-            set: dto.seccionsIds.map((id) => ({ id })),
-          },
-        }),
+        ...(dto.seccionsIds && dto.seccionsIds.length
+          ? {
+              seccions: {
+                set: dto.seccionsIds.map((id) => ({ id })),
+              },
+            }
+          : {}),
       },
       include: { seccions: true, rule: true },
     });
