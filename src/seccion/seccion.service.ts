@@ -72,10 +72,10 @@ export class SeccionService {
     const { rule, questionsIds, formId, ...rest } = dto;
     const seccionData: any = { ...rest };
     if (ruleIdToLink) {
-      seccionData.ruleId = ruleIdToLink;
+      seccionData.rule = { connect: { id: ruleIdToLink } }; // <-- Correção aqui
     }
     if (formId) {
-      seccionData.form = { connect: { id: formId } }; // <-- RELAÇÃO CORRETA
+      seccionData.form = { connect: { id: formId } };
     } else {
       throw new Error('formId is required to create a seccion');
     }
