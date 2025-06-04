@@ -198,14 +198,21 @@ export class FormService {
       for (const seccionDto of dto.seccions) {
         // Verifica se existe uma regra na seção
         if (seccionDto.rule) {
-          if (seccionDto.rule.id) {
-            // Atualiza a regra existente da seção
-            await this.ruleService.update(seccionDto.rule.id, seccionDto.rule);
-          } else {
-            // Cria uma nova regra para a seção
-            const createdRule = await this.ruleService.create(seccionDto.rule);
-            seccionDto.ruleId = createdRule.id;
+          // Só cria/atualiza se houver campos obrigatórios preenchidos
+          if (seccionDto.rule.type) {
+            if (seccionDto.rule.id) {
+              await this.ruleService.update(
+                seccionDto.rule.id,
+                seccionDto.rule,
+              );
+            } else {
+              const createdRule = await this.ruleService.create(
+                seccionDto.rule,
+              );
+              seccionDto.ruleId = createdRule.id;
+            }
           }
+          // Se não houver 'type', não cria nem atualiza a regra
         }
         let seccion;
         if (dto.seccionsIds) {
