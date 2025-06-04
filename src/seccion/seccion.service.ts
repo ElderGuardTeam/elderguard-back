@@ -72,7 +72,7 @@ export class SeccionService {
     const { rule, questionsIds, formId, ...rest } = dto;
     const seccionData: any = { ...rest };
     if (ruleIdToLink) {
-      seccionData.rule = { connect: { id: ruleIdToLink } }; // <-- Correção aqui
+      seccionData.rule = { connect: { id: ruleIdToLink } };
     }
     if (formId) {
       seccionData.form = { connect: { id: formId } };
@@ -80,7 +80,11 @@ export class SeccionService {
       throw new Error('formId is required to create a seccion');
     }
 
+    // Remover ruleId se existir
+    delete seccionData.ruleId;
+
     const seccion = await this.prisma.seccion.create({ data: seccionData });
+
     this.logger.log(`Seccion created with ID: ${seccion.id}`);
 
     if (questionsIds && Array.isArray(questionsIds)) {
