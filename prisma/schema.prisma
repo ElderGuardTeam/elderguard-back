@@ -181,6 +181,7 @@ enum QuestionType {
   SELECT
   MULTISELECT
   BOOLEAN
+  SCORE
 }
 
 enum RuleType {
