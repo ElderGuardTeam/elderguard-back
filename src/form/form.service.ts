@@ -218,11 +218,14 @@ export class FormService {
         if (dto.seccionsIds) {
           seccion = await this.seccionService.update(
             dto.seccionsIds[index],
-            seccionDto,
+            { ...seccionDto, formId: id }, // <-- adiciona formId aqui
           );
           index++;
         } else {
-          seccion = await this.seccionService.create(seccionDto);
+          seccion = await this.seccionService.create({
+            ...seccionDto,
+            formId: id, // <-- adiciona formId aqui
+          });
         }
       }
     }
