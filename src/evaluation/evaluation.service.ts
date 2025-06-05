@@ -42,7 +42,28 @@ export class EvaluationService {
   }
 
   async findOne(id: string) {
-    return this.prisma.evaluation.findUnique({ where: { id } });
+    return this.prisma.evaluation.findUnique({
+      where: { id },
+      include: {
+        formsRel: {
+          // formsRel é a relação para Evaluation_has_Form
+          orderBy: {
+            order: 'asc', // Ordena os formulários pela ordem definida
+          },
+          select: {
+            order: true, // Seleciona o campo 'order' da tabela de junção
+            form: {
+              // A partir da tabela de junção, acessa o formulário relacionado
+              select: {
+                id: true,
+                title: true,
+                description: true,
+              },
+            },
+          },
+        },
+      },
+    });
   }
 
   async update(id: string, dto: UpdateEvaluationDto) {

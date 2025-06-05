@@ -206,10 +206,11 @@ export class FormService {
                 seccionDto.rule.id,
                 seccionDto.rule,
               );
+              seccionDto.ruleId = seccionDto.rule.id;
             } else {
-              const createdRule = await this.ruleService.create(
-                seccionDto.rule,
-              );
+              // Remove o id se existir, para evitar erro de constraint
+              const { id, ...ruleData } = seccionDto.rule;
+              const createdRule = await this.ruleService.create(ruleData);
               seccionDto.ruleId = createdRule.id;
             }
           }
