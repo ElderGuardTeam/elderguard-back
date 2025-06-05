@@ -188,7 +188,8 @@ export class FormService {
         ruleId = rule.id;
       } else {
         // Cria uma nova regra
-        const rule = await this.ruleService.create(dto.rule);
+        const { id, ...ruleData } = dto.rule; // <-- Remover id antes de criar
+        const rule = await this.ruleService.create(ruleData);
         ruleId = rule.id;
       }
     }
