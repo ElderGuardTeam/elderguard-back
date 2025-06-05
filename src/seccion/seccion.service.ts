@@ -32,56 +32,72 @@ export class SeccionService {
     this.logger.debug(
       `Attempting to create seccion with data: ${JSON.stringify(dto)}`,
     );
-    let ruleIdToLink: string | undefined = undefined;
+    let effectiveRuleId: string | undefined = undefined;
 
     if (dto.rule) {
-      if (!this.areAllRuleFieldsNull(dto.rule)) {
+      if (dto.rule.id) {
         this.logger.debug(
-          `Rule data provided for seccion and is not all nulls. Attempting to create rule: ${JSON.stringify(dto.rule)}`,
+          `Rule object provided with existing ID: ${dto.rule.id}. Using this ID for linking.`,
+        );
+        effectiveRuleId = dto.rule.id;
+      } else if (!this.areAllRuleFieldsNull(dto.rule)) {
+        this.logger.debug(
+          `Rule data provided (without ID) and is not all nulls. Attempting to create new rule: ${JSON.stringify(dto.rule)}`,
         );
         try {
-          const createdRule = await this.ruleService.create(dto.rule);
+          // Garantir que não passamos 'id' para o create do ruleService, mesmo que seja null/undefined
+          const { id, ...ruleDataToCreate } = dto.rule;
+          const createdRule = await this.ruleService.create(ruleDataToCreate);
           if (createdRule && createdRule.id) {
-            ruleIdToLink = createdRule.id;
+            effectiveRuleId = createdRule.id;
             this.logger.debug(
-              `Rule created successfully with ID: ${ruleIdToLink}`,
+              `New rule created successfully with ID: ${effectiveRuleId}`,
             );
           } else if (createdRule) {
             this.logger.warn(
-              `Rule service returned a rule object without an ID for rule data: ${JSON.stringify(dto.rule)}. Seccion title: '${dto.title}'. Proceeding without linking rule.`,
+              `Rule service returned a rule object without an ID for rule data: ${JSON.stringify(ruleDataToCreate)}. Seccion title: '${dto.title}'. Proceeding without linking rule.`,
             );
           } else {
             this.logger.log(
-              `Rule service returned null/undefined for rule data: ${JSON.stringify(dto.rule)}. Seccion title: '${dto.title}'. Proceeding without linking rule.`,
+              `Rule service returned null/undefined for rule data: ${JSON.stringify(ruleDataToCreate)}. Seccion title: '${dto.title}'. Proceeding without linking rule.`,
             );
           }
         } catch (error) {
           this.logger.error(
-            `Error creating rule for seccion '${dto.title}' with rule data ${JSON.stringify(dto.rule)}: ${error.message}`,
+            `Error creating new rule for seccion '${dto.title}' with rule data ${JSON.stringify(dto.rule)}: ${error.message}`,
             error.stack,
           );
           throw error;
         }
       } else {
         this.logger.log(
-          `Rule data provided for seccion '${dto.title}' but all fields were null or object was empty. Skipping rule creation. Rule data: ${JSON.stringify(dto.rule)}`,
+          `Rule object provided for seccion '${dto.title}' but it was empty or all fields were null, and no ID was present. Skipping rule processing from rule object. Rule data: ${JSON.stringify(dto.rule)}`,
         );
       }
     }
 
-    const { rule, questionsIds, formId, ...rest } = dto;
-    const seccionData: any = { ...rest };
-    if (ruleIdToLink) {
-      seccionData.rule = { connect: { id: ruleIdToLink } };
+    if (!effectiveRuleId && dto.ruleId) {
+      this.logger.debug(
+        `Using explicit ruleId from DTO: ${dto.ruleId} as no rule was determined from rule object.`,
+      );
+      effectiveRuleId = dto.ruleId;
     }
+
+    const { rule, ruleId, questionsIds, formId, ...restOfDto } = dto;
+    const seccionData: any = { ...restOfDto };
+
+    if (effectiveRuleId) {
+      seccionData.rule = { connect: { id: effectiveRuleId } };
+    }
+
     if (formId) {
       seccionData.form = { connect: { id: formId } };
     } else {
+      this.logger.error(
+        'formId is required to create a seccion but was not provided.',
+      );
       throw new Error('formId is required to create a seccion');
     }
-
-    // Remover ruleId se existir
-    delete seccionData.ruleId;
 
     const seccion = await this.prisma.seccion.create({ data: seccionData });
 
