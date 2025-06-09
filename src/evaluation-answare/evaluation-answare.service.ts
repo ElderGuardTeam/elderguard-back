@@ -143,6 +143,7 @@ export class EvaluationAnswareService {
 
         let calculatedFormTotalScore = 0;
         const questionsAnswaresData = await Promise.all(
+          // eslint-disable-next-line @typescript-eslint/require-await
           (formAnswareDto.questionsAnswares || []).map(async (qaDto) => {
             const question = questionsMap.get(qaDto.questionId);
             if (!question)
