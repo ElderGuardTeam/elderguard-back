@@ -89,44 +89,70 @@ export class EvaluationAnswareService {
       return [];
     }
 
+    // Coletar todos os IDs para buscas em lote
+    const formIds = formAnswareDtos.map((dto) => dto.formId);
+    const elderlyIds = formAnswareDtos.map((dto) => dto.elderlyId);
+    const techProfessionalIds = formAnswareDtos.map(
+      (dto) => dto.techProfessionalId,
+    );
+    const questionIds = formAnswareDtos.flatMap(
+      (dto) => dto.questionsAnswares?.map((qa) => qa.questionId) || [],
+    );
+
+    // Buscar entidades em lote
+    const [forms, elderlies, professionals, questionsWithOptions] =
+      await Promise.all([
+        this.prisma.form.findMany({ where: { id: { in: formIds } } }),
+        this.prisma.elderly.findMany({ where: { id: { in: elderlyIds } } }),
+        this.prisma.professional.findMany({
+          where: { id: { in: techProfessionalIds } },
+        }),
+        this.prisma.question.findMany({
+          where: { id: { in: questionIds } },
+          include: { options: true },
+        }),
+      ]);
+
+    // Mapear para fácil acesso por ID
+    const formsMap = new Map(forms.map((f) => [f.id, f]));
+    const elderliesMap = new Map(elderlies.map((e) => [e.id, e]));
+    const professionalsMap = new Map(professionals.map((p) => [p.id, p]));
+    const questionsMap = new Map(questionsWithOptions.map((q) => [q.id, q]));
+
     return Promise.all(
       formAnswareDtos.map(async (formAnswareDto) => {
-        const form = await this.prisma.form.findUnique({
-          where: { id: formAnswareDto.formId },
-        });
+        const form = formsMap.get(formAnswareDto.formId);
         if (!form)
           throw new NotFoundException(
             `Form with ID ${formAnswareDto.formId} not found.`,
           );
-        const elderly = await this.prisma.elderly.findUnique({
-          where: { id: formAnswareDto.elderlyId },
-        });
+
+        const elderly = elderliesMap.get(formAnswareDto.elderlyId);
         if (!elderly)
           throw new NotFoundException(
             `Elderly with ID ${formAnswareDto.elderlyId} not found.`,
           );
-        const professional = await this.prisma.professional.findUnique({
-          where: { id: formAnswareDto.techProfessionalId },
-        });
+
+        const professional = professionalsMap.get(
+          formAnswareDto.techProfessionalId,
+        );
         if (!professional)
           throw new NotFoundException(
             `Professional with ID ${formAnswareDto.techProfessionalId} not found.`,
           );
 
         let calculatedFormTotalScore = 0;
-
         const questionsAnswaresData = await Promise.all(
           (formAnswareDto.questionsAnswares || []).map(async (qaDto) => {
-            const question = await this.prisma.question.findUnique({
-              where: { id: qaDto.questionId },
-              include: { options: true },
-            });
+            const question = questionsMap.get(qaDto.questionId);
             if (!question)
               throw new NotFoundException(
                 `Question with ID ${qaDto.questionId} not found.`,
               );
 
             let questionScore = qaDto.score ?? 0;
+
+            // Validação e cálculo de score baseado no tipo da questão
             if (
               qaDto.selectedOptionId &&
               (question.type === QuestionType.SELECT ||
@@ -135,11 +161,12 @@ export class EvaluationAnswareService {
               const selectedOption = question.options.find(
                 (opt) => opt.id === qaDto.selectedOptionId,
               );
-              if (selectedOption) questionScore = selectedOption.score;
-              else
-                console.warn(
-                  `Selected option ${qaDto.selectedOptionId} not found for question ${qaDto.questionId}. Score will be ${questionScore}.`,
+              if (!selectedOption) {
+                throw new BadRequestException(
+                  `Selected option ID ${qaDto.selectedOptionId} not found for question ${qaDto.questionId}.`,
                 );
+              }
+              questionScore = selectedOption.score;
             } else if (
               qaDto.optionAnswers?.length &&
               question.type === QuestionType.MULTISELECT
@@ -147,13 +174,17 @@ export class EvaluationAnswareService {
               questionScore = 0;
               for (const oa of qaDto.optionAnswers) {
                 const optionExists = question.options.some(
-                  (opt) => opt.id === oa.optionId,
+                  (optDb) => optDb.id === oa.optionId,
                 );
-                if (!optionExists)
-                  throw new NotFoundException(
+                if (!optionExists) {
+                  throw new BadRequestException(
                     `Option with ID ${oa.optionId} not found for question ${qaDto.questionId}.`,
                   );
-                questionScore += oa.score; // Assumindo oa.score é o score da opção selecionada
+                }
+                // Se o score da opção múltipla vem do DTO (oa.score)
+                // ou se deve ser buscado da `question.options` como no SELECT.
+                // Aqui, assume-se que oa.score é o score da sub-resposta da opção.
+                questionScore += oa.score;
               }
             }
             calculatedFormTotalScore += questionScore;
