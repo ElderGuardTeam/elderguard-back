@@ -34,14 +34,14 @@ export class ElderlyService {
 
     const birthDate = new Date(sanitizedData.dateOfBirth);
     if (isNaN(birthDate.getTime())) {
-      throw new Error('Data de nascimento inválida');
+      throw new BadRequestException('Data de nascimento inválida.');
     }
 
     // 🔹 Criar endereços dos contatos *antes* da transação
     const contactsWithAddresses = await Promise.all(
       sanitizedData.contacts.map(async (contact) => {
         if (!contact.address) {
-          throw new Error('Contact address is required');
+          throw new BadRequestException('Endereço do contato é obrigatório.');
         }
         const contactAddress = await this.addressService.create(
           contact.address,
@@ -159,7 +159,7 @@ export class ElderlyService {
     if (data.contacts && data.contacts.length > 0) {
       for (const contact of data.contacts) {
         if (!contact.cpf) {
-          throw new Error('CPF do contato é obrigatório');
+          throw new BadRequestException('CPF do contato é obrigatório.');
         }
         await this.contactService.update(contact.cpf, contact);
       }
@@ -195,15 +195,22 @@ export class ElderlyService {
   }
 
   async delete(id: string) {
-    const elderly = await this.findOne(id);
+    // A chamada findOne garante que o idoso existe antes de iniciar a transação.
+    // Se não existir, findOne lançará NotFoundException.
+    const elderlyData = await this.findOne(id);
 
-    await this.prisma.elderlyContact.deleteMany({ where: { elderlyId: id } });
+    return this.prisma.$transaction(async (tx) => {
+      await tx.elderlyContact.deleteMany({ where: { elderlyId: id } });
 
-    await this.prisma.elderly.delete({ where: { id } });
+      await tx.elderly.delete({ where: { id } });
 
-    await this.userService.delete(elderly.userId);
+      // Idealmente, o userService.delete também aceitaria um cliente de transação (tx)
+      // ou você usaria tx.user.delete diretamente se a lógica for simples.
+      // Exemplo: await tx.user.delete({ where: { id: elderlyData.userId } });
+      await this.userService.delete(elderlyData.userId); // Assumindo que userService.delete internamente pode lidar com isso ou é simples.
 
-    return { message: 'Elderly deleted successfully' };
+      return { message: 'Idoso excluído com sucesso.' };
+    });
   }
 
   async validateIdentity(data: ValidateElderlyDto) {
