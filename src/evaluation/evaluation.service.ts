@@ -51,14 +51,12 @@ export class EvaluationService {
       where: { id },
       include: {
         formsRel: {
-          // formsRel é a relação para Evaluation_has_Form
           orderBy: {
-            order: 'asc', // Ordena os formulários pela ordem definida
+            order: 'asc',
           },
           select: {
-            order: true, // Seleciona o campo 'order' da tabela de junção
+            order: true,
             form: {
-              // A partir da tabela de junção, acessa o formulário relacionado
               select: {
                 id: true,
                 title: true,
@@ -75,18 +73,15 @@ export class EvaluationService {
     const { formsIds, ...evaluationUpdateData } = dto;
 
     return this.prisma.$transaction(async (tx) => {
-      // Atualiza a avaliação
       const evaluation = await tx.evaluation.update({
         where: { id },
         data: evaluationUpdateData,
       });
 
-      // Remove relações antigas
       await tx.evaluation_has_Form.deleteMany({
         where: { evaluationId: id },
       });
 
-      // Cria novas relações, se houver formsIds no DTO
       if (formsIds && Array.isArray(formsIds) && formsIds.length > 0) {
         const newEvaluationFormsData = formsIds.map((formId, index) => ({
           evaluationId: evaluation.id,
@@ -104,7 +99,6 @@ export class EvaluationService {
 
   async remove(id: string) {
     return this.prisma.$transaction(async (tx) => {
-      // Remove relações antes de deletar a avaliação
       await tx.evaluation_has_Form.deleteMany({
         where: { evaluationId: id },
       });

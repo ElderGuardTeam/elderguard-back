@@ -60,7 +60,7 @@ export class SeccionService {
             const { id, ...ruleDataToCreate } = dto.rule;
             const createdRule = await this.ruleService.create(
               ruleDataToCreate as CreateRuleDto /*, tx */,
-            ); // Passar tx se ruleService suportar
+            );
             if (createdRule && createdRule.id) {
               ruleIdToLink = createdRule.id;
               this.logger.debug(
@@ -129,7 +129,7 @@ export class SeccionService {
         const questionRelations = questionsIds.map((questionId, index) => ({
           seccionId: createdSeccion.id,
           questionId: questionId,
-          index: index, // Assuming you might want an order
+          index: index,
         }));
         await tx.seccion_has_Question.createMany({
           data: questionRelations,
@@ -196,7 +196,6 @@ export class SeccionService {
       };
 
       if (ruleInput === null) {
-        // Explicitly disconnect rule
         updatePayload.rule = { disconnect: true };
         this.logger.debug(
           `Attempting to disconnect rule from seccion ID: ${id}`,
@@ -212,7 +211,7 @@ export class SeccionService {
             const { id: _, ...ruleDataToUpdate } = ruleInput;
             const updatedRule = await this.ruleService.update(
               ruleInputId,
-              ruleDataToUpdate as UpdateRuleDto /*, tx */, // Passar tx se ruleService suportar
+              ruleDataToUpdate as UpdateRuleDto /*, tx */,
             );
             updatePayload.rule = { connect: { id: updatedRule.id } };
           } else {
@@ -222,7 +221,7 @@ export class SeccionService {
 
             const { id: _, ...ruleDataToCreate } = ruleInput;
             const createdRule = await this.ruleService.create(
-              ruleDataToCreate as CreateRuleDto /*, tx */, // Passar tx se ruleService suportar
+              ruleDataToCreate as CreateRuleDto /*, tx */,
             );
             updatePayload.rule = { connect: { id: createdRule.id } };
           }
@@ -232,13 +231,11 @@ export class SeccionService {
           );
         }
       } else if (dto.ruleId) {
-        // Handle explicit ruleId if rule object is not provided
         updatePayload.rule = { connect: { id: dto.ruleId } };
         this.logger.debug(
           `Attempting to connect rule ID: ${dto.ruleId} to seccion ID: ${id}`,
         );
       } else if (dto.ruleId === null) {
-        // Explicitly disconnect rule by ruleId: null
         updatePayload.rule = { disconnect: true };
         this.logger.debug(
           `Attempting to disconnect rule from seccion ID: ${id} using ruleId: null`,
@@ -282,12 +279,10 @@ export class SeccionService {
   }
 
   async remove(id: string) {
-    // Remove relações com perguntas primeiro
     await this.prisma.seccion_has_Question.deleteMany({
       where: { seccionId: id },
     });
-    // Considerar se a regra associada deve ser removida se não estiver mais em uso.
-    // Por enquanto, apenas remove a seção.
+
     const deletedSeccion = await this.prisma.seccion.delete({ where: { id } });
     this.logger.log(
       `Seccion ID: ${id} and its question relations removed successfully.`,

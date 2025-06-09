@@ -8,21 +8,20 @@ import { UpdateEvaluationAnswareDto } from './dto/update-evaluation-answare.dto'
 import { PrismaService } from 'src/database/prisma.service';
 import { QuestionType, EvaluationAnswareStatus, Prisma } from '@prisma/client';
 
-// Define a more precise type for the objects processed and returned by processFormAnswaresDto
 interface ProcessedFormAnswareData {
-  formId: string; // Ensures formId is always a string
+  formId: string;
   elderlyId: string;
   techProfessionalId: string;
   totalScore: number | null;
-  questionsAnswares: Prisma.QuestionAnswerCreateNestedManyWithoutFormAnswareInput; // For the 'create' part of FormAnsware
-  updateData: Prisma.FormAnswareUpdateWithoutEvaluationAnswareInput; // For the 'update' part of FormAnsware
+  questionsAnswares: Prisma.QuestionAnswerCreateNestedManyWithoutFormAnswareInput;
+  updateData: Prisma.FormAnswareUpdateWithoutEvaluationAnswareInput;
 }
 @Injectable()
 export class EvaluationAnswareService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateEvaluationAnswareDto) {
-    const { evaluationId, formAnswares = [] } = dto; // Default para array vazio se não fornecido
+    const { evaluationId, formAnswares = [] } = dto;
 
     const evaluation = await this.prisma.evaluation.findUnique({
       where: { id: evaluationId },
@@ -35,7 +34,6 @@ export class EvaluationAnswareService {
 
     let calculatedEvaluationTotalScore = 0;
 
-    // A lógica de processamento de formAnswares será encapsulada para reutilização
     const processedFormAnswares = await this.processFormAnswaresDto(
       formAnswares,
       (score) => (calculatedEvaluationTotalScore += score),
@@ -45,14 +43,14 @@ export class EvaluationAnswareService {
       data: {
         evaluationId,
         scoreTotal: calculatedEvaluationTotalScore,
-        status: EvaluationAnswareStatus.IN_PROGRESS, // Explicitamente definido, embora seja o default do schema
+        status: EvaluationAnswareStatus.IN_PROGRESS,
         formAnswares: {
           create: processedFormAnswares.map((pfa) => ({
             form: { connect: { id: pfa.formId } },
             idoso: { connect: { id: pfa.elderlyId } },
             professional: { connect: { id: pfa.techProfessionalId } },
             totalScore: pfa.totalScore,
-            questionsAnswares: pfa.questionsAnswares, // Já está no formato de create
+            questionsAnswares: pfa.questionsAnswares,
           })),
         },
       },
@@ -80,7 +78,6 @@ export class EvaluationAnswareService {
     });
   }
 
-  // Função auxiliar para processar DTOs de FormAnsware (para create e update)
   private async processFormAnswaresDto(
     formAnswareDtos: CreateEvaluationAnswareDto['formAnswares'] | undefined,
     updateEvaluationScoreCallback: (formScore: number) => void,
@@ -89,7 +86,6 @@ export class EvaluationAnswareService {
       return [];
     }
 
-    // Coletar todos os IDs para buscas em lote
     const formIds = formAnswareDtos.map((dto) => dto.formId);
     const elderlyIds = formAnswareDtos.map((dto) => dto.elderlyId);
     const techProfessionalIds = formAnswareDtos.map(
@@ -99,7 +95,6 @@ export class EvaluationAnswareService {
       (dto) => dto.questionsAnswares?.map((qa) => qa.questionId) || [],
     );
 
-    // Buscar entidades em lote
     const [forms, elderlies, professionals, questionsWithOptions] =
       await Promise.all([
         this.prisma.form.findMany({ where: { id: { in: formIds } } }),
@@ -113,7 +108,6 @@ export class EvaluationAnswareService {
         }),
       ]);
 
-    // Mapear para fácil acesso por ID
     const formsMap = new Map(forms.map((f) => [f.id, f]));
     const elderliesMap = new Map(elderlies.map((e) => [e.id, e]));
     const professionalsMap = new Map(professionals.map((p) => [p.id, p]));
@@ -153,7 +147,6 @@ export class EvaluationAnswareService {
 
             let questionScore = qaDto.score ?? 0;
 
-            // Validação e cálculo de score baseado no tipo da questão
             if (
               qaDto.selectedOptionId &&
               (question.type === QuestionType.SELECT ||
@@ -182,16 +175,13 @@ export class EvaluationAnswareService {
                     `Option with ID ${oa.optionId} not found for question ${qaDto.questionId}.`,
                   );
                 }
-                // Se o score da opção múltipla vem do DTO (oa.score)
-                // ou se deve ser buscado da `question.options` como no SELECT.
-                // Aqui, assume-se que oa.score é o score da sub-resposta da opção.
+
                 questionScore += oa.score;
               }
             }
             calculatedFormTotalScore += questionScore;
 
             return {
-              // Formato para 'create' aninhado
               questionId: qaDto.questionId,
               answerText: qaDto.answerText,
               answerNumber: qaDto.answerNumber,
@@ -200,7 +190,7 @@ export class EvaluationAnswareService {
               selectedOptionId: qaDto.selectedOptionId,
               score: questionScore,
               optionAnswers: qaDto.optionAnswers
-                ? { create: qaDto.optionAnswers.map((oa) => ({ ...oa })) } // Espalha as propriedades de oa
+                ? { create: qaDto.optionAnswers.map((oa) => ({ ...oa })) }
                 : undefined,
             };
           }),
@@ -209,13 +199,12 @@ export class EvaluationAnswareService {
         updateEvaluationScoreCallback(calculatedFormTotalScore);
 
         return {
-          // Campos para identificar/criar o FormAnsware
           formId: formAnswareDto.formId,
           elderlyId: formAnswareDto.elderlyId,
           techProfessionalId: formAnswareDto.techProfessionalId,
           totalScore: calculatedFormTotalScore,
-          questionsAnswares: { create: questionsAnswaresData }, // Para a parte 'create' do upsert
-          // Dados para a parte 'update' do upsert
+          questionsAnswares: { create: questionsAnswaresData },
+
           updateData: {
             idoso: { connect: { id: formAnswareDto.elderlyId } },
             professional: {
@@ -223,7 +212,6 @@ export class EvaluationAnswareService {
             },
             totalScore: calculatedFormTotalScore,
             questionsAnswares: {
-              // Para atualizar, deletamos as antigas e criamos as novas
               deleteMany: {},
               create: questionsAnswaresData,
             },
@@ -299,7 +287,6 @@ export class EvaluationAnswareService {
       throw new NotFoundException(`EvaluationAnsware with ID ${id} not found.`);
     }
 
-    // Não permitir mudar a evaluationId de uma EvaluationAnsware existente
     if (
       dtoEvaluationId &&
       dtoEvaluationId !== existingEvaluationAnsware.evaluationId
@@ -317,8 +304,6 @@ export class EvaluationAnswareService {
       if (status === EvaluationAnswareStatus.COMPLETED) {
         updatePayload.completedAt = new Date();
       } else {
-        // Se o status está mudando para algo que não seja COMPLETED,
-        // e já estava COMPLETED, devemos limpar completedAt.
         if (existingEvaluationAnsware.status === 'COMPLETED') {
           updatePayload.completedAt = null;
         }
@@ -332,7 +317,7 @@ export class EvaluationAnswareService {
       );
 
       updatePayload.scoreTotal = calculatedEvaluationTotalScore;
-      updatePayload.formAnswares = updatePayload.formAnswares ?? {}; // Initialize if undefined
+      updatePayload.formAnswares = updatePayload.formAnswares ?? {};
       updatePayload.formAnswares = {
         upsert: processedFormAnswaresForUpsert.map((pfa) => ({
           where: {
@@ -342,31 +327,28 @@ export class EvaluationAnswareService {
             },
           },
           create: {
-            // Dados para criar se FormAnsware não existir
             form: { connect: { id: pfa.formId } },
             idoso: { connect: { id: pfa.elderlyId } },
             professional: { connect: { id: pfa.techProfessionalId } },
             totalScore: pfa.totalScore,
-            questionsAnswares: pfa.questionsAnswares, // Já está no formato { create: [...] }
+            questionsAnswares: pfa.questionsAnswares,
           },
-          update: pfa.updateData, // Dados para atualizar FormAnsware existente
+          update: pfa.updateData,
         })),
       };
-      // Lógica para remover FormAnswares que não estão mais no DTO (se necessário)
+
       const formIdsInDto = formAnswareDtos.map((fa) => fa.formId);
       updatePayload.formAnswares.deleteMany = {
         evaluationAnswareId: id,
         formId: { notIn: formIdsInDto },
       };
     } else if (dtoScoreTotal !== undefined) {
-      // Se formAnswares não for enviado, mas scoreTotal for, atualize-o.
       updatePayload.scoreTotal = dtoScoreTotal;
     }
     return this.prisma.evaluationAnsware.update({
       where: { id },
       data: updatePayload,
       include: {
-        // Retornar a entidade completa atualizada
         evaluation: true,
         formAnswares: {
           include: {
@@ -387,13 +369,6 @@ export class EvaluationAnswareService {
   }
 
   async remove(id: string) {
-    // Para deleção em cascata segura, é ideal ter `onDelete: Cascade` no schema.prisma.
-    // Se não, deletamos manualmente em uma transação.
-    // Exemplo:
-    // model FormAnsware {
-    //   evaluationAnsware   EvaluationAnsware @relation(fields: [evaluationAnswareId], references: [id], onDelete: Cascade)
-    // }
-    // Assumindo que `onDelete: Cascade` NÃO está configurado para todas as dependências:
     return this.prisma.$transaction(async (tx) => {
       const formAnswares = await tx.formAnsware.findMany({
         where: { evaluationAnswareId: id },

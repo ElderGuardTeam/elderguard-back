@@ -14,7 +14,7 @@ export class CreateOptionAnswerNestedDto {
 
   @IsNumber()
   @IsNotEmpty()
-  score: number; // Score específico para esta opção na resposta
+  score: number;
 
   @IsString()
   @IsOptional()

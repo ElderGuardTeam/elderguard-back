@@ -21,5 +21,5 @@ export class CreateEvaluationAnswareDto {
 
   @IsNumber()
   @IsOptional()
-  scoreTotal?: number; // Opcional: será calculado no backend
+  scoreTotal?: number;
 }

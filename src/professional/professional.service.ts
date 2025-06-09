@@ -6,7 +6,7 @@ import {
 import { PrismaService } from 'src/database/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { CreateProfessionalDto } from './dto/create-professional.dto';
-import { UpdateProfessionalDto } from './dto/update-professional.dto'; // Presumindo que este DTO pode conter name, email, phone
+import { UpdateProfessionalDto } from './dto/update-professional.dto';
 import { UserType, Prisma } from '@prisma/client';
 
 const BCRYPT_SALT_ROUNDS = 10;
@@ -17,11 +17,10 @@ export class ProfessionalService {
 
   async create(data: CreateProfessionalDto) {
     return this.prisma.$transaction(async (tx) => {
-      // Verifica se o CPF já está cadastrado para evitar erro
       const sanitizedData = {
         ...data,
         cpf: data.cpf.replace(/\D/g, ''),
-        phone: data.phone.replace(/\D/g, ''), // Remove qualquer caractere que não seja número
+        phone: data.phone.replace(/\D/g, ''),
       };
       const existingUser = await tx.user.findUnique({
         where: { login: sanitizedData.cpf },
@@ -36,7 +35,6 @@ export class ProfessionalService {
         BCRYPT_SALT_ROUNDS,
       );
 
-      // Cria o usuário antes do idoso
       const user = await tx.user.create({
         data: {
           login: sanitizedData.cpf,
@@ -64,10 +62,7 @@ export class ProfessionalService {
     return this.prisma.professional.findMany({
       where: search
         ? {
-            OR: [
-              { name: { contains: search } }, // Removido mode: 'insensitive' para compatibilidade
-              { cpf: { contains: search } },
-            ],
+            OR: [{ name: { contains: search } }, { cpf: { contains: search } }],
           }
         : undefined,
       include: { user: true },
@@ -95,7 +90,7 @@ export class ProfessionalService {
     };
     if (name) dataToUpdateProfessional.name = name;
     if (email) dataToUpdateProfessional.email = email;
-    if (phone) dataToUpdateProfessional.phone = phone.replace(/\D/g, ''); // Sanitiza o telefone
+    if (phone) dataToUpdateProfessional.phone = phone.replace(/\D/g, '');
 
     return this.prisma.$transaction(async (tx) => {
       const professionalExists = await tx.professional.findUnique({
@@ -106,13 +101,11 @@ export class ProfessionalService {
         throw new NotFoundException('Profissional não encontrado');
       }
 
-      // Atualiza a entidade Professional
       const updatedProfessional = await tx.professional.update({
         where: { id },
         data: dataToUpdateProfessional,
       });
 
-      // Atualiza a entidade User relacionada se name ou email foram fornecidos
       const userDataToUpdate: Prisma.UserUpdateInput = {};
       if (name) userDataToUpdate.name = name;
       if (email) userDataToUpdate.email = email;
@@ -124,7 +117,6 @@ export class ProfessionalService {
         });
       }
 
-      // Retorna o profissional com os dados do usuário atualizados
       return tx.professional.findUnique({
         where: { id: updatedProfessional.id },
         include: { user: true },

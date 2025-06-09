@@ -26,7 +26,7 @@ export class CreateQuestionAnswerNestedDto {
 
   @IsString()
   @IsOptional()
-  answerImage?: string; // Geralmente uma URL ou path
+  answerImage?: string;
 
   @IsBoolean()
   @IsOptional()
@@ -34,15 +34,15 @@ export class CreateQuestionAnswerNestedDto {
 
   @IsUUID()
   @IsOptional()
-  selectedOptionId?: string; // Para questões do tipo SELECT ou BOOLEAN (modeladas como SELECT)
+  selectedOptionId?: string;
 
   @IsNumber()
   @IsOptional()
-  score?: number; // Opcional: pode ser calculado no backend ou enviado se já calculado
+  score?: number;
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateOptionAnswerNestedDto)
   @IsOptional()
-  optionAnswers?: CreateOptionAnswerNestedDto[]; // Para MULTISELECT com dados por opção
+  optionAnswers?: CreateOptionAnswerNestedDto[];
 }

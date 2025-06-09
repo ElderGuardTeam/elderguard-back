@@ -7,7 +7,7 @@ import { PrismaService } from 'src/database/prisma.service';
 import { SeccionService } from 'src/seccion/seccion.service';
 import { RuleService } from 'src/rule/rule.service';
 import { Prisma } from '@prisma/client';
-import { CreateRuleDto } from 'src/rule/dto/create-rule.dto'; // Exemplo, ajuste o path e tipo
+import { CreateRuleDto } from 'src/rule/dto/create-rule.dto';
 
 @Injectable()
 export class FormService {
@@ -19,16 +19,15 @@ export class FormService {
     private ruleService: RuleService,
   ) {}
 
-  // Melhorar tipagem e remover eslint-disable no-unsafe-member-access e no-unsafe-argument
   private areAllRuleFieldsNull(
     ruleDto: Partial<CreateRuleDto> | null | undefined,
   ): boolean {
     if (!ruleDto || typeof ruleDto !== 'object' || ruleDto === null) {
-      return true; // Considera não objeto ou nulo como "todos os campos nulos"
+      return true;
     }
     const values = Object.values(ruleDto);
     if (values.length === 0) {
-      return true; // Considera objeto vazio como "todos os campos nulos"
+      return true;
     }
     return values.every((value) => value === null);
   }
@@ -46,7 +45,6 @@ export class FormService {
             `Rule data provided. Attempting to create rule: ${JSON.stringify(dto.rule)}`,
           );
           try {
-            // Se ruleService.create puder usar 'tx', passe-o. Ex: this.ruleService.create(dto.rule, tx)
             const createdRule = await this.ruleService.create(dto.rule);
             if (createdRule && createdRule.id) {
               ruleIdToLink = createdRule.id;
@@ -103,7 +101,6 @@ export class FormService {
         );
         const createdSeccions: string[] = [];
         for (const seccionDto of seccions) {
-          // Se seccionService.create puder usar 'tx', passe-o.
           const seccion = await this.seccionService.create(
             {
               ...seccionDto,
@@ -114,9 +111,7 @@ export class FormService {
             createdSeccions.push(seccion.id);
           }
         }
-        // Se a criação de seções com formId não for suficiente para a relação ser populada
-        // ou se a relação for M-M, a conexão explícita pode ser necessária.
-        // Para uma relação 1-M padrão, isso pode ser redundante se 'include' funcionar como esperado.
+
         if (createdSeccions.length > 0) {
           await tx.form.update({
             where: { id: createdForm.id },
@@ -128,8 +123,7 @@ export class FormService {
           });
         }
       }
-      // Recarregar o formulário para garantir que todas as relações (especialmente seções conectadas) estejam presentes
-      // Se a lógica acima for simplificada e o `createdForm` já tiver tudo, esta linha pode ser removida.
+
       const finalForm = await tx.form.findUnique({
         where: { id: createdForm.id },
         include: {
@@ -238,7 +232,6 @@ export class FormService {
             }
           }
           if (dto.seccionsIds && dto.seccionsIds[index]) {
-            // Verifica se o ID da seção existe
             await this.seccionService.update(
               dto.seccionsIds[index],
               { ...seccionDto, formId: id },
@@ -273,7 +266,6 @@ export class FormService {
           set: dto.seccionsIds.map((sid) => ({ id: sid })),
         };
       } else if (dto.seccions && dto.seccions.length === 0) {
-        // Explicitamente limpar seções se um array vazio for passado
         formUpdateData.seccions = { set: [] };
       }
 
@@ -298,7 +290,7 @@ export class FormService {
           await tx.form_has_Question.createMany({ data: questionRelations });
         }
       }
-      // Retornar o formulário com todas as relações atualizadas
+
       return tx.form.findUnique({
         where: { id: updatedForm.id },
         include: {
@@ -318,10 +310,7 @@ export class FormService {
   async remove(id: string) {
     return this.prisma.$transaction(async (tx) => {
       await tx.form_has_Question.deleteMany({ where: { formId: id } });
-      // Adicionalmente, se seções são fortemente ligadas e devem ser removidas com o formulário,
-      // e não há cascade delete configurado no Prisma schema, elas precisariam ser removidas aqui.
-      // Ex: await tx.seccion.deleteMany({ where: { formId: id } });
-      // Isso depende da sua lógica de negócio e configuração do schema.
+
       return tx.form.delete({ where: { id } });
     });
   }

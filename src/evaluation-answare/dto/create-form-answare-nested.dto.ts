@@ -27,7 +27,6 @@ export class CreateFormAnswareNestedDto {
   @Type(() => CreateQuestionAnswerNestedDto)
   questionsAnswares: CreateQuestionAnswerNestedDto[];
 
-  // totalScore será calculado no backend, mas pode ser opcionalmente enviado
   @IsNumber()
   @IsOptional()
   totalScore?: number;
