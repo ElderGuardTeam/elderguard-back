@@ -101,7 +101,7 @@ export class FormService {
         this.logger.debug(
           `Processing ${seccions.length} sections for form ID: ${createdForm.id}`,
         );
-        const createdSeccionIds: string[] = [];
+        const createdSeccions: string[] = [];
         for (const seccionDto of seccions) {
           // Se seccionService.create puder usar 'tx', passe-o.
           const seccion = await this.seccionService.create(
@@ -110,17 +110,19 @@ export class FormService {
               formId: createdForm.id,
             } /*, tx */,
           );
-          createdSeccionIds.push(seccion.id);
+          if (seccion && seccion.id) {
+            createdSeccions.push(seccion.id);
+          }
         }
         // Se a criação de seções com formId não for suficiente para a relação ser populada
         // ou se a relação for M-M, a conexão explícita pode ser necessária.
         // Para uma relação 1-M padrão, isso pode ser redundante se 'include' funcionar como esperado.
-        if (createdSeccionIds.length > 0) {
+        if (createdSeccions.length > 0) {
           await tx.form.update({
             where: { id: createdForm.id },
             data: {
               seccions: {
-                connect: createdSeccionIds.map((id) => ({ id })),
+                connect: createdSeccions.map((id) => ({ id })),
               },
             },
           });
