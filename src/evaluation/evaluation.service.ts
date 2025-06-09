@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateEvaluationDto } from './dto/create-evaluation.dto';
 import { UpdateEvaluationDto } from './dto/update-evaluation.dto';
 import { PrismaService } from 'src/database/prisma.service';
@@ -13,19 +13,24 @@ export class EvaluationService {
   ) {}
 
   async create(dto: CreateEvaluationDto) {
-    const { formsIds, ...evaluationData } = dto;
-    const evaluation = await this.prisma.evaluation.create({
-      data: evaluationData,
-    });
-
-    let index: number = 0;
-    for (const form of formsIds) {
-      await this.prisma.evaluation_has_Form.create({
-        data: { evaluationId: evaluation.id, formId: form, order: index },
+    return this.prisma.$transaction(async (tx) => {
+      const { formsIds, ...evaluationData } = dto;
+      const evaluation = await tx.evaluation.create({
+        data: evaluationData,
       });
-      index++;
-    }
-    return evaluation;
+
+      if (formsIds && formsIds.length > 0) {
+        const evaluationFormsData = formsIds.map((formId, index) => ({
+          evaluationId: evaluation.id,
+          formId: formId,
+          order: index,
+        }));
+        await tx.evaluation_has_Form.createMany({
+          data: evaluationFormsData,
+        });
+      }
+      return evaluation;
+    });
   }
   async findAll(search?: string) {
     return this.prisma.evaluation.findMany({
@@ -67,37 +72,44 @@ export class EvaluationService {
   }
 
   async update(id: string, dto: UpdateEvaluationDto) {
-    // Atualiza a avaliação
-    const evaluation = await this.prisma.evaluation.update({
-      where: { id },
-      data: dto,
-    });
+    const { formsIds, ...evaluationUpdateData } = dto;
 
-    // Remove relações antigas
-    await this.prisma.evaluation_has_Form.deleteMany({
-      where: { evaluationId: id },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      // Atualiza a avaliação
+      const evaluation = await tx.evaluation.update({
+        where: { id },
+        data: evaluationUpdateData,
+      });
 
-    // Cria novas relações, se houver formsIds no DTO
-    if (dto.formsIds && Array.isArray(dto.formsIds)) {
-      let index = 0;
-      for (const formId of dto.formsIds) {
-        await this.prisma.evaluation_has_Form.create({
-          data: { evaluationId: id, formId, order: index },
+      // Remove relações antigas
+      await tx.evaluation_has_Form.deleteMany({
+        where: { evaluationId: id },
+      });
+
+      // Cria novas relações, se houver formsIds no DTO
+      if (formsIds && Array.isArray(formsIds) && formsIds.length > 0) {
+        const newEvaluationFormsData = formsIds.map((formId, index) => ({
+          evaluationId: evaluation.id,
+          formId,
+          order: index,
+        }));
+        await tx.evaluation_has_Form.createMany({
+          data: newEvaluationFormsData,
         });
-        index++;
       }
-    }
 
-    return evaluation;
+      return evaluation;
+    });
   }
 
   async remove(id: string) {
-    // Remove relações antes de deletar a avaliação
-    await this.prisma.evaluation_has_Form.deleteMany({
-      where: { evaluationId: id },
+    return this.prisma.$transaction(async (tx) => {
+      // Remove relações antes de deletar a avaliação
+      await tx.evaluation_has_Form.deleteMany({
+        where: { evaluationId: id },
+      });
+      return tx.evaluation.delete({ where: { id } });
     });
-    return this.prisma.evaluation.delete({ where: { id } });
   }
 
   async startEvaluation(data: StartEvaluationDto) {
@@ -105,11 +117,11 @@ export class EvaluationService {
       data.elderlyData,
     );
     if (!elderly) {
-      throw new Error('Elderly not found');
+      throw new NotFoundException('Elderly not found');
     }
     const evaluation = await this.findOne(data.evaluationId);
     if (!evaluation) {
-      throw new Error('Evaluation not found');
+      throw new NotFoundException('Evaluation not found');
     }
     return { evaluation, elderly };
   }
