@@ -6,8 +6,10 @@ import {
 import { PrismaService } from 'src/database/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { CreateProfessionalDto } from './dto/create-professional.dto';
-import { UpdateProfessionalDto } from './dto/update-professional.dto';
-import { UserType } from '@prisma/client';
+import { UpdateProfessionalDto } from './dto/update-professional.dto'; // Presumindo que este DTO pode conter name, email, phone
+import { UserType, Prisma } from '@prisma/client';
+
+const BCRYPT_SALT_ROUNDS = 10;
 
 @Injectable()
 export class ProfessionalService {
@@ -29,7 +31,10 @@ export class ProfessionalService {
         throw new BadRequestException('Este CPF já está cadastrado.');
       }
 
-      const hashedPassword = await bcrypt.hash(sanitizedData.cpf, 10);
+      const hashedPassword = await bcrypt.hash(
+        sanitizedData.cpf,
+        BCRYPT_SALT_ROUNDS,
+      );
 
       // Cria o usuário antes do idoso
       const user = await tx.user.create({
@@ -59,7 +64,10 @@ export class ProfessionalService {
     return this.prisma.professional.findMany({
       where: search
         ? {
-            OR: [{ name: { contains: search } }, { cpf: { contains: search } }],
+            OR: [
+              { name: { contains: search } }, // Removido mode: 'insensitive' para compatibilidade
+              { cpf: { contains: search } },
+            ],
           }
         : undefined,
       include: { user: true },
@@ -80,27 +88,64 @@ export class ProfessionalService {
   }
 
   async update(id: string, data: UpdateProfessionalDto) {
-    return this.prisma.professional.update({
-      where: { id },
-      data,
-      include: { user: true },
+    const { name, email, phone, ...otherProfessionalData } = data;
+
+    const dataToUpdateProfessional: Prisma.ProfessionalUpdateInput = {
+      ...otherProfessionalData,
+    };
+    if (name) dataToUpdateProfessional.name = name;
+    if (email) dataToUpdateProfessional.email = email;
+    if (phone) dataToUpdateProfessional.phone = phone.replace(/\D/g, ''); // Sanitiza o telefone
+
+    return this.prisma.$transaction(async (tx) => {
+      const professionalExists = await tx.professional.findUnique({
+        where: { id },
+      });
+
+      if (!professionalExists) {
+        throw new NotFoundException('Profissional não encontrado');
+      }
+
+      // Atualiza a entidade Professional
+      const updatedProfessional = await tx.professional.update({
+        where: { id },
+        data: dataToUpdateProfessional,
+      });
+
+      // Atualiza a entidade User relacionada se name ou email foram fornecidos
+      const userDataToUpdate: Prisma.UserUpdateInput = {};
+      if (name) userDataToUpdate.name = name;
+      if (email) userDataToUpdate.email = email;
+
+      if (Object.keys(userDataToUpdate).length > 0) {
+        await tx.user.update({
+          where: { id: professionalExists.userId },
+          data: userDataToUpdate,
+        });
+      }
+
+      // Retorna o profissional com os dados do usuário atualizados
+      return tx.professional.findUnique({
+        where: { id: updatedProfessional.id },
+        include: { user: true },
+      });
     });
   }
 
   async remove(id: string) {
-    const professional = await this.prisma.professional.findUnique({
-      where: { id },
-      include: { user: true },
+    return this.prisma.$transaction(async (tx) => {
+      const professional = await tx.professional.findUnique({
+        where: { id },
+      });
+
+      if (!professional) {
+        throw new NotFoundException('Profissional não encontrado');
+      }
+
+      await tx.professional.delete({ where: { id } });
+      await tx.user.delete({ where: { id: professional.userId } });
+
+      return { message: 'Professional deleted successfully' };
     });
-
-    if (!professional) {
-      throw new NotFoundException('Profissional não encontrado');
-    }
-
-    await this.prisma.professional.delete({ where: { id } });
-
-    await this.prisma.user.delete({ where: { id: professional.userId } });
-
-    return { message: 'Professional deleted successfully' };
   }
 }
