@@ -2,7 +2,7 @@ import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { RuleType } from '@prisma/client';
 export class CreateRuleDto {
   @IsEnum(RuleType)
-  type: RuleType;
+  type?: RuleType;
 
   @IsOptional()
   @IsNumber()

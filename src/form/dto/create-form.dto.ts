@@ -24,6 +24,7 @@ export class CreateFormDto {
   @Type(() => CreateRuleDto)
   rule?: CreateRuleDto;
 
+  @IsOptional()
   @IsArray()
-  questionsIds: string[];
+  questionsIds?: string[];
 }

@@ -9,8 +9,9 @@ export class CreateSeccionDto {
   @IsString()
   ruleId?: string;
 
+  @IsOptional()
   @IsString()
-  formId: string;
+  formId?: string;
 
   @IsOptional()
   @ValidateNested()
