@@ -22,7 +22,7 @@ export class CreateQuestionDto {
 
   @IsEnum(QuestionType, { message: 'Tipo de questão inválido.' })
   @IsNotEmpty({ message: 'O tipo da questão não pode estar vazio.' })
-  type!: string;
+  type!: QuestionType;
 
   @IsArray()
   @ValidateNested({ each: true })
