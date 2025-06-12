@@ -1,13 +1,14 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsEnum,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsUUID,
   ValidateNested,
 } from 'class-validator';
 import { CreateFormAnswareNestedDto } from './create-form-answare-nested.dto';
+import { EvaluationAnswareStatus } from '@prisma/client';
 
 export class CreateEvaluationAnswareDto {
   @IsUUID()
@@ -19,7 +20,12 @@ export class CreateEvaluationAnswareDto {
   @Type(() => CreateFormAnswareNestedDto)
   formAnswares: CreateFormAnswareNestedDto[];
 
-  @IsNumber()
+  @IsEnum(EvaluationAnswareStatus)
   @IsOptional()
-  scoreTotal?: number;
+  @IsOptional()
+  status?: EvaluationAnswareStatus;
+
+  @IsUUID()
+  @IsNotEmpty()
+  elderlyId: string;
 }
