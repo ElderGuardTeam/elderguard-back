@@ -28,4 +28,8 @@ export class CreateEvaluationAnswareDto {
   @IsUUID()
   @IsNotEmpty()
   elderlyId: string;
+
+  @IsUUID()
+  @IsNotEmpty()
+  professionalId: string;
 }

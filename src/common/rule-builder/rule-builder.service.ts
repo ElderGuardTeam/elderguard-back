@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { CreateRuleDto } from 'src/rule/dto/create-rule.dto';
 

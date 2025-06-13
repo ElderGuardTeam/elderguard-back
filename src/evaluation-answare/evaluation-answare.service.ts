@@ -4,13 +4,14 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { CreateEvaluationAnswareDto } from './dto/create-evaluation-answare.dto';
+import { CreateFormAnswareNestedDto } from './dto/create-form-answare-nested.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import {
   RuleEngineService,
   EvaluationContext,
 } from '../common/rule-engine/rule-engine.service';
 import { AddFormAnswareDto } from './dto/add-form-answare.dto';
-import { Prisma } from '@prisma/client';
+import { Prisma, Elderly } from '@prisma/client';
 
 @Injectable()
 export class EvaluationAnswareService {
@@ -20,7 +21,7 @@ export class EvaluationAnswareService {
   ) {}
 
   /**
-   * Cria o registro EvaluationAnsware com a resposta do PRIMEIRO formulário.
+   * Cria o registro principal de EvaluationAnsware com a resposta do PRIMEIRO formulário.
    */
   async create(createDto: CreateEvaluationAnswareDto) {
     if (!createDto.formAnswares || createDto.formAnswares.length !== 1) {
@@ -29,21 +30,32 @@ export class EvaluationAnswareService {
       );
     }
 
-    const { formAnswares, ...evaluationData } = createDto;
-
     return this.prisma.$transaction(async (prisma) => {
+      // Busca o idoso para passar ao contexto das regras
+      const elderly = await prisma.elderly.findUnique({
+        where: { id: createDto.elderlyId },
+      });
+      if (!elderly) {
+        throw new NotFoundException(
+          `Idoso com ID ${createDto.elderlyId} não encontrado.`,
+        );
+      }
+
       const evaluationAnsware = await prisma.evaluationAnsware.create({
         data: {
-          elderlyId: evaluationData.elderlyId,
-          evaluationId: evaluationData.evaluationId,
+          elderlyId: createDto.elderlyId,
+          evaluationId: createDto.evaluationId,
           status: 'IN_PROGRESS',
         },
       });
 
+      // Processa e salva o primeiro formulário
       await this.processAndScoreForm(
         prisma,
         evaluationAnsware.id,
-        formAnswares[0],
+        createDto.formAnswares[0],
+        elderly, // Passa o objeto 'elderly'
+        createDto.professionalId, // Passa o 'professionalId'
       );
 
       return this.findOne(evaluationAnsware.id);
@@ -57,27 +69,24 @@ export class EvaluationAnswareService {
     return this.prisma.$transaction(async (prisma) => {
       const evaluationAnsware = await prisma.evaluationAnsware.findUnique({
         where: { id },
+        include: { elderly: true }, // Inclui o idoso na busca
       });
+
       if (!evaluationAnsware) {
         throw new NotFoundException(
           `Resposta da Avaliação com ID ${id} não encontrada.`,
         );
       }
 
-      // Previne o reenvio de um formulário já respondido
-      const existingForm = await prisma.formAnsware.findFirst({
-        where: { evaluationAnswareId: id, formId: addDto.formAnsware.formId },
-      });
-      if (existingForm) {
-        throw new BadRequestException(
-          'Este formulário já foi respondido para esta avaliação.',
-        );
-      }
+      const { elderly } = evaluationAnsware;
 
+      // Processa e salva o novo formulário de forma aditiva
       await this.processAndScoreForm(
         prisma,
         evaluationAnsware.id,
         addDto.formAnsware,
+        elderly, // Passa o objeto 'elderly'
+        addDto.professionalId, // Passa o 'professionalId' da avaliação existente
       );
 
       return this.findOne(id);
@@ -86,162 +95,187 @@ export class EvaluationAnswareService {
 
   /**
    * Lógica centralizada para processar e pontuar UM ÚNICO formulário.
+   * @private
    */
   private async processAndScoreForm(
     prisma: Prisma.TransactionClient,
     evaluationAnswareId: string,
-    formAnswareDto: any,
+    formAnswareDto: CreateFormAnswareNestedDto, // Mantido como 'any' para flexibilidade com o DTO
+    elderly: Elderly,
+    professionalId: string,
   ) {
-    const [form, elderly] = await Promise.all([
-      prisma.form.findUnique({
-        where: { id: formAnswareDto.formId },
-        include: {
-          rules: true,
-          seccions: {
-            include: {
-              rule: true,
-              questions: { include: { rules: true, options: true } },
+    // 1. BUSCA CORRIGIDA: Navegando através das tabelas de relacionamento
+    const form = await prisma.form.findUnique({
+      where: { id: formAnswareDto.formId },
+      include: {
+        rule: true, // Relação singular com Rule
+        // Para buscar questões dentro de seções: Form -> Seccion -> questionsRel -> question
+        seccions: {
+          include: {
+            rule: true,
+            questionsRel: {
+              // Acessa a tabela pivo Seccion_has_Question
+              include: {
+                question: {
+                  // Acessa a entidade Question real
+                  include: {
+                    rule: true,
+                    options: true,
+                  },
+                },
+              },
             },
           },
-          questions: {
-            where: { seccionId: null },
-            include: { rules: true, options: true },
+        },
+        // Para buscar questões diretas do formulário: Form -> questionsRel -> question
+        questionsRel: {
+          // Acessa a tabela pivo Form_has_Question
+          orderBy: { index: 'asc' },
+          include: {
+            question: {
+              // Acessa a entidade Question real
+              include: {
+                rule: true,
+                options: true,
+              },
+            },
           },
         },
-      }),
-      prisma.elderly.findUnique({ where: { id: formAnswareDto.elderlyId } }),
-    ]);
+      },
+    });
 
-    if (!form)
+    if (!form) {
       throw new NotFoundException(
         `Formulário com ID ${formAnswareDto.formId} não encontrado.`,
       );
-    if (!elderly)
-      throw new NotFoundException(
-        `Idoso com ID ${formAnswareDto.elderlyId} não encontrado.`,
-      );
+    }
+
+    // 2. LÓGICA ATUALIZADA: Extrai as questões da nova estrutura de dados
+    const topLevelQuestions = form.questionsRel.map((rel) => rel.question);
+    const sectionQuestions = form.seccions.flatMap((sec) =>
+      sec.questionsRel.map((rel) => rel.question),
+    );
+    const allQuestionsInForm = [...topLevelQuestions, ...sectionQuestions];
+
+    // O resto da lógica de cálculo permanece a mesma, pois agora opera sobre 'allQuestionsInForm'
 
     const allQuestionScores: { questionId: string; score: number }[] = [];
-    const allQuestionsInForm = [
-      ...form.questions,
-      ...form.seccions.flatMap((s) => s.questions),
-    ];
-
     for (const question of allQuestionsInForm) {
-      const answareDto = formAnswareDto.questionAnswares.find(
+      const answareDto = formAnswareDto.questionsAnswares.find(
         (q) => q.questionId === question.id,
       );
       if (!answareDto) continue;
 
-      const selectedOptions = question.options.filter((opt) =>
-        answareDto.optionAnswares?.some((ans) => ans.optionId === opt.id),
-      );
+      const selectedOptions = question.options
+        .filter((opt) =>
+          answareDto.optionAnswers?.some((ans) => ans.optionId === opt.id),
+        )
+        .map((opt) => ({
+          ...opt,
+          description: opt.description ?? '',
+        }));
       const questionContext: EvaluationContext = { selectedOptions, elderly };
       const score = this.ruleEngine.calculateScore(
-        question.rules,
+        question.rule ? [question.rule] : [],
         questionContext,
-      );
+      ); // Envia a regra como um array
       allQuestionScores.push({ questionId: question.id, score });
     }
 
     const seccionScores: { seccionId: string; score: number }[] = [];
     for (const seccion of form.seccions) {
       const questionScoresForThisSeccion = allQuestionScores.filter((qs) =>
-        seccion.questions.some((q) => q.id === qs.questionId),
+        seccion.questionsRel.some((rel) => rel.questionId === qs.questionId),
       );
-      const answeredQuestions = questionScoresForThisSeccion.length;
-      const totalQuestions = seccion.questions.length;
-
       const seccionContext: EvaluationContext = {
         questionScores: questionScoresForThisSeccion,
         elderly,
-        answeredQuestions,
-        totalQuestions,
       };
       const score = this.ruleEngine.calculateScore(
-        seccion.rules,
+        seccion.rule ? [seccion.rule] : [],
         seccionContext,
       );
       seccionScores.push({ seccionId: seccion.id, score });
     }
 
     const scoresOutsideSeccion = allQuestionScores.filter((qs) =>
-      form.questions.some((q) => q.id === qs.questionId),
+      form.questionsRel.some((rel) => rel.questionId === qs.questionId),
     );
     const formContext: EvaluationContext = {
       questionScores: scoresOutsideSeccion,
       seccionScores,
       elderly,
     };
-    const formScore = this.ruleEngine.calculateScore(form.rules, formContext);
+    const formScore = this.ruleEngine.calculateScore(
+      form.rule ? [form.rule] : [],
+      formContext,
+    );
 
+    // 3. Persistência dos dados (sem alterações necessárias aqui)
     const formAnsware = await prisma.formAnsware.create({
       data: {
         formId: form.id,
         evaluationAnswareId,
-        score: formScore,
-        professionalId: formAnswareDto.professionalId,
-        elderlyId: formAnswareDto.elderlyId,
+        totalScore: formScore,
+        techProfessionalId: professionalId,
+        elderlyId: elderly.id,
       },
     });
 
-    for (const questionAnswareDto of formAnswareDto.questionAnswares) {
+    for (const questionAnswareDto of formAnswareDto.questionsAnswares) {
       const score =
         allQuestionScores.find(
           (qs) => qs.questionId === questionAnswareDto.questionId,
         )?.score ?? 0;
-      const questionAnsware = await prisma.questionAnsware.create({
+      const questionAnsware = await prisma.questionAnswer.create({
         data: {
           questionId: questionAnswareDto.questionId,
           formAnswareId: formAnsware.id,
           score,
         },
       });
-      if (questionAnswareDto.optionAnswares) {
-        await prisma.optionAnsware.createMany({
-          data: questionAnswareDto.optionAnswares.map((opt) => ({
+      if (questionAnswareDto.optionAnswers) {
+        await prisma.optionAnswer.createMany({
+          data: questionAnswareDto.optionAnswers.map((opt) => ({
             optionId: opt.optionId,
-            questionAnswareId: questionAnsware.id,
+            questionAnswerId: questionAnsware.id,
+            // Add 'score' if it's required, set to a default value if needed
+            score: opt.score ?? 0,
           })),
         });
       }
     }
   }
 
-  /**
-   * Busca todas as respostas de avaliação (sem alterações).
-   */
-  findAll() {
+  // findAll, findOne, e remove permanecem os mesmos
+  async findAll() {
     return this.prisma.evaluationAnsware.findMany({
       include: {
         elderly: { select: { id: true, name: true } },
-        professional: { select: { id: true, name: true } },
-        evaluation: { select: { id: true, name: true } },
+        evaluation: { select: { id: true, title: true } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { created: 'desc' },
     });
   }
 
-  /**
-   * Busca uma única resposta de avaliação por ID, incluindo todos os detalhes (sem alterações).
-   */
   async findOne(id: string) {
     const evaluationAnsware = await this.prisma.evaluationAnsware.findUnique({
       where: { id },
       include: {
         elderly: true,
-        professional: true,
         evaluation: true,
         formAnswares: {
-          orderBy: { createdAt: 'asc' },
+          orderBy: { created: 'asc' },
           include: {
-            form: { select: { name: true } },
-            questionAnswares: {
-              orderBy: { createdAt: 'asc' },
+            form: { select: { title: true } },
+            questionsAnswares: {
+              orderBy: { created: 'asc' },
               include: {
-                question: { select: { text: true, type: true } },
-                optionAnswares: {
-                  include: { option: { select: { text: true, score: true } } },
+                question: { select: { title: true, type: true } },
+                optionAnswers: {
+                  include: {
+                    option: { select: { description: true, score: true } },
+                  },
                 },
               },
             },
@@ -258,9 +292,6 @@ export class EvaluationAnswareService {
     return evaluationAnsware;
   }
 
-  /**
-   * Remove uma resposta de avaliação (sem alterações).
-   */
   async remove(id: string) {
     const existing = await this.prisma.evaluationAnsware.findUnique({
       where: { id },

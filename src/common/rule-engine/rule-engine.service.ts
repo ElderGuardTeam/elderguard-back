@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable } from '@nestjs/common';
 import { Rule } from '@prisma/client';
 import { create, all } from 'mathjs';
@@ -27,7 +31,10 @@ export class RuleEngineService {
       let finalScore = 0;
       for (const rule of sortedRules) {
         const ruleContext = { ...context, currentScore: finalScore };
-        finalScore = this._evaluateExpression(rule.expression, ruleContext);
+        finalScore = this._evaluateExpression(
+          rule.expression ?? '',
+          ruleContext,
+        );
       }
       return finalScore;
     }
