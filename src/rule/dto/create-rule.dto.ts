@@ -35,4 +35,8 @@ export class CreateRuleDto {
   @IsOptional()
   @IsString()
   id?: string;
+
+  @IsOptional()
+  @IsNumber()
+  priority?: number;
 }

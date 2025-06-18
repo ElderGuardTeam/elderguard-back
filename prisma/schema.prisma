@@ -14,26 +14,27 @@ datasource db {
 }
 
 model Elderly {
-  id             String           @id @default(uuid())
-  cpf            String           @unique
-  name           String
-  email          String           @default("")
-  dateOfBirth    DateTime
-  phone          String
-  contacts       ElderlyContact[] 
-  address        Address          @relation(fields: [addressId], references: [id]) 
-  addressId      String
-  sex            String
-  weight         Float
-  height         Float
-  imc            Float
-  education      String
-  socialeconomic String
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade) 
-  userId         String           @unique
-  created        DateTime         @default(now())
-  updated        DateTime         @updatedAt
-  FormAnsware    FormAnsware[] 
+  id                String              @id @default(uuid())
+  cpf               String              @unique
+  name              String
+  email             String              @default("")
+  dateOfBirth       DateTime
+  phone             String
+  contacts          ElderlyContact[]
+  address           Address             @relation(fields: [addressId], references: [id])
+  addressId         String
+  sex               String
+  weight            Float
+  height            Float
+  imc               Float
+  education         String
+  socialeconomic    String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String              @unique
+  created           DateTime            @default(now())
+  updated           DateTime            @updatedAt
+  FormAnsware       FormAnsware[]
+  EvaluationAnsware EvaluationAnsware[]
 }
 
 model Address {
@@ -45,8 +46,8 @@ model Address {
   city         String
   state        String
   zipCode      String
-  Elderly      Elderly[] 
-  Contact      Contact[] 
+  Elderly      Elderly[]
+  Contact      Contact[]
   created      DateTime  @default(now())
   updated      DateTime  @updatedAt
 }
@@ -57,9 +58,9 @@ model Contact {
   phone     String
   email     String
   cpf       String           @unique
-  address   Address          @relation(fields: [addressId], references: [id]) 
+  address   Address          @relation(fields: [addressId], references: [id])
   addressId String
-  elderly   ElderlyContact[] 
+  elderly   ElderlyContact[]
   created   DateTime         @default(now())
   updated   DateTime         @updatedAt
 }
@@ -67,8 +68,8 @@ model Contact {
 model ElderlyContact {
   elderlyId String
   contactId String
-  elderly   Elderly @relation(fields: [elderlyId], references: [id], onDelete: Cascade) 
-  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade) 
+  elderly   Elderly @relation(fields: [elderlyId], references: [id], onDelete: Cascade)
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
 
   @@id([elderlyId, contactId])
 }
@@ -79,11 +80,11 @@ model Professional {
   name        String
   phone       String
   email       String
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade) 
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      String        @unique
   created     DateTime      @default(now())
   updated     DateTime      @updatedAt
-  FormAnsware FormAnsware[] 
+  FormAnsware FormAnsware[]
 }
 
 model Question {
@@ -93,24 +94,24 @@ model Question {
   type           QuestionType
   created        DateTime               @default(now())
   updated        DateTime               @updatedAt
-  options        Option[] 
+  options        Option[]
   ruleId         String?
-  rule           Rule?                  @relation(fields: [ruleId], references: [id], onDelete: Cascade) 
-  formRel        Form_has_Question[] 
-  seccionRel     Seccion_has_Question[] 
-  QuestionAnswer QuestionAnswer[] 
+  rule           Rule?                  @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  formRel        Form_has_Question[]
+  seccionRel     Seccion_has_Question[]
+  QuestionAnswer QuestionAnswer[]
 }
 
 model Option {
   id             String           @id @default(uuid())
   description    String?
   score          Int
-  question       Question         @relation(fields: [questionId], references: [id], onDelete: Cascade) 
+  question       Question         @relation(fields: [questionId], references: [id], onDelete: Cascade)
   questionId     String
   created        DateTime         @default(now())
   updated        DateTime         @updatedAt
-  OptionAnswer   OptionAnswer[] 
-  QuestionAnswer QuestionAnswer[] 
+  OptionAnswer   OptionAnswer[]
+  QuestionAnswer QuestionAnswer[]
 }
 
 model OptionAnswer {
@@ -119,9 +120,9 @@ model OptionAnswer {
   answerText       String?
   answerNumber     Float?
   answerBoolean    Boolean?
-  option           Option         @relation(fields: [optionId], references: [id], onDelete: Cascade) 
+  option           Option         @relation(fields: [optionId], references: [id], onDelete: Cascade)
   optionId         String
-  questionAnswer   QuestionAnswer @relation(fields: [questionAnswerId], references: [id], onDelete: Cascade) 
+  questionAnswer   QuestionAnswer @relation(fields: [questionAnswerId], references: [id], onDelete: Cascade)
   questionAnswerId String
   created          DateTime       @default(now())
   updated          DateTime       @updatedAt
@@ -129,20 +130,20 @@ model OptionAnswer {
 
 model QuestionAnswer {
   id               String         @id @default(uuid())
-  question         Question       @relation(fields: [questionId], references: [id], onDelete: Cascade) 
+  question         Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
   questionId       String
-  formAnsware      FormAnsware    @relation(fields: [formAnswareId], references: [id], onDelete: Cascade) 
+  formAnsware      FormAnsware    @relation(fields: [formAnswareId], references: [id], onDelete: Cascade)
   formAnswareId    String
   answerText       String?
   answerNumber     Float?
   answerImage      String?
   answerBoolean    Boolean?
   selectedOptionId String?
-  selectedOption   Option?        @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull) 
+  selectedOption   Option?        @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull)
   score            Int?
   created          DateTime       @default(now())
   updated          DateTime       @updatedAt
-  optionAnswers    OptionAnswer[] 
+  optionAnswers    OptionAnswer[]
 }
 
 model User {
@@ -157,8 +158,8 @@ model User {
   mustChangePassword Boolean       @default(true)
   created            DateTime      @default(now())
   updated            DateTime      @updatedAt
-  elderly            Elderly? 
-  professional       Professional? 
+  elderly            Elderly?
+  professional       Professional?
 }
 
 enum UserType {
@@ -195,12 +196,12 @@ model Form {
   title               String
   type                String?
   description         String?
-  seccions            Seccion[] 
-  questionsRel        Form_has_Question[] 
-  FormAnsware         FormAnsware[] 
-  Evaluation_has_Form Evaluation_has_Form[] 
+  seccions            Seccion[]
+  questionsRel        Form_has_Question[]
+  FormAnsware         FormAnsware[]
+  Evaluation_has_Form Evaluation_has_Form[]
   ruleId              String?
-  rule                Rule?                 @relation(fields: [ruleId], references: [id], onDelete: SetNull) 
+  rule                Rule?                 @relation(fields: [ruleId], references: [id], onDelete: SetNull)
   created             DateTime              @default(now())
   updated             DateTime              @updatedAt
 }
@@ -209,8 +210,8 @@ model Form_has_Question {
   formId     String
   questionId String
   index      Int
-  form       Form     @relation(fields: [formId], references: [id], onDelete: Cascade) 
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade) 
+  form       Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@id([formId, questionId])
 }
@@ -220,9 +221,9 @@ model Seccion {
   title        String
   ruleId       String?
   formId       String
-  rule         Rule?                  @relation(fields: [ruleId], references: [id], onDelete: SetNull) 
+  rule         Rule?                  @relation(fields: [ruleId], references: [id], onDelete: SetNull)
   form         Form                   @relation(fields: [formId], references: [id], onDelete: Cascade)
-  questionsRel Seccion_has_Question[] 
+  questionsRel Seccion_has_Question[]
   created      DateTime               @default(now())
   updated      DateTime               @updatedAt
 }
@@ -230,27 +231,33 @@ model Seccion {
 model Seccion_has_Question {
   seccionId  String
   questionId String
-  seccion    Seccion  @relation(fields: [seccionId], references: [id], onDelete: Cascade) 
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade) 
+  seccion    Seccion  @relation(fields: [seccionId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@id([seccionId, questionId])
 }
 
 model Rule {
-  id         String     @id @default(uuid())
-  type       RuleType
-  maxScore   Int?
-  value1Type String?
-  value2Type String?
-  value1     Int?
-  value2     Int?
-  condition  String?
-  operation  String?
-  seccions   Seccion[] 
-  questions  Question[] 
-  created    DateTime   @default(now())
-  updated    DateTime   @updatedAt
-  Form       Form[] 
+  id          String     @id @default(uuid())
+  type        RuleType?
+  maxScore    Int?
+  value1Type  String?
+  value2Type  String?
+  value1      Int?
+  value2      Int?
+  // Armazena a expressão que a RuleEngine irá executar
+  expression  String?
+  // Armazena uma descrição amigável da regra para exibição
+  description String?
+  // Usado para definir a ordem de execução de múltiplas regras
+  priority    Int        @default(0)
+  condition   String?
+  operation   String?
+  seccions    Seccion[]
+  questions   Question[]
+  created     DateTime   @default(now())
+  updated     DateTime   @updatedAt
+  Form        Form[]
 }
 
 model FormAnsware {
@@ -260,11 +267,11 @@ model FormAnsware {
   elderlyId           String
   techProfessionalId  String
   evaluationAnswareId String
-  evaluationAnsware   EvaluationAnsware @relation(fields: [evaluationAnswareId], references: [id], onDelete: Cascade) 
-  form                Form              @relation(fields: [formId], references: [id]) 
-  idoso               Elderly           @relation(fields: [elderlyId], references: [id], onDelete: Cascade) 
-  professional        Professional      @relation(fields: [techProfessionalId], references: [id], onDelete: Cascade) 
-  questionsAnswares   QuestionAnswer[] 
+  evaluationAnsware   EvaluationAnsware @relation(fields: [evaluationAnswareId], references: [id], onDelete: Cascade)
+  form                Form              @relation(fields: [formId], references: [id])
+  idoso               Elderly           @relation(fields: [elderlyId], references: [id], onDelete: Cascade)
+  professional        Professional      @relation(fields: [techProfessionalId], references: [id], onDelete: Cascade)
+  questionsAnswares   QuestionAnswer[]
   created             DateTime          @default(now())
   updated             DateTime          @updatedAt
 
@@ -275,18 +282,18 @@ model Evaluation {
   id                String                @id @default(uuid())
   title             String
   description       String?
-  formsRel          Evaluation_has_Form[] 
+  formsRel          Evaluation_has_Form[]
   created           DateTime              @default(now())
   updated           DateTime              @updatedAt
-  EvaluationAnsware EvaluationAnsware[] 
+  EvaluationAnsware EvaluationAnsware[]
 }
 
 model Evaluation_has_Form {
   evaluationId String
   formId       String
   order        Int
-  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade) 
-  form         Form       @relation(fields: [formId], references: [id], onDelete: Cascade) 
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  form         Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
 
   @@id([evaluationId, formId])
 }
@@ -297,8 +304,9 @@ model EvaluationAnsware {
   startedAt    DateTime                @default(now())
   completedAt  DateTime?
   status       EvaluationAnswareStatus @default(IN_PROGRESS)
-  scoreTotal   Float?
-  evaluation   Evaluation              @relation(fields: [evaluationId], references: [id]) 
+  elderlyId    String
+  elderly      Elderly                 @relation(fields: [elderlyId], references: [id], onDelete: Cascade)
+  evaluation   Evaluation              @relation(fields: [evaluationId], references: [id])
   formAnswares FormAnsware[]
   created      DateTime                @default(now())
   updated      DateTime                @updatedAt

@@ -1,8 +1,10 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateFormDto } from './create-form.dto';
-import { IsArray } from 'class-validator';
+import { IsArray, IsOptional, IsString } from 'class-validator';
 
 export class UpdateFormDto extends PartialType(CreateFormDto) {
+  @IsOptional()
   @IsArray()
-  seccionsIds: string[];
+  @IsString({ each: true })
+  seccionsIds?: string[];
 }

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
@@ -7,6 +6,7 @@ import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { RuleService } from 'src/rule/rule.service';
 import { CreateRuleDto } from 'src/rule/dto/create-rule.dto';
+import { UpdateRuleDto } from 'src/rule/dto/update-rule.dto';
 
 @Injectable()
 export class QuestionService {
@@ -31,86 +31,86 @@ export class QuestionService {
   }
 
   async create(data: CreateQuestionDto) {
-    this.logger.debug(
-      `Attempting to create question with data: ${JSON.stringify(data)}`,
-    );
-    let ruleIdToLink: string | undefined = undefined;
+    return this.prisma.$transaction(async (tx) => {
+      this.logger.debug(
+        `Attempting to create question with data: ${JSON.stringify(data)}`,
+      );
+      let ruleIdToLink: string | undefined = undefined;
 
-    if (data.rule) {
-      if (!this.areAllRuleFieldsNull(data.rule)) {
-        const ruleToCreate: CreateRuleDto = data.rule;
-        this.logger.debug(
-          `Rule data provided and is not all nulls. Attempting to create rule: ${JSON.stringify(ruleToCreate)}`,
-        );
-        try {
-          const createdRule = await this.ruleService.create(ruleToCreate);
-
-          if (createdRule && createdRule.id) {
-            ruleIdToLink = createdRule.id;
-            this.logger.debug(
-              `Rule created successfully with ID: ${ruleIdToLink}`,
-            );
-          } else if (createdRule) {
-            this.logger.warn(
-              `Rule service returned a rule object without an ID for rule data: ${JSON.stringify(ruleToCreate)}. Question: '${data.title}'. Proceeding without linking rule.`,
-            );
-          } else {
-            this.logger.log(
-              `Rule service returned null/undefined for rule data: ${JSON.stringify(ruleToCreate)}. Question: '${data.title}'. Proceeding without linking rule.`,
-            );
-          }
-        } catch (error) {
-          this.logger.error(
-            `Error creating rule for question '${data.title}' with rule data ${JSON.stringify(ruleToCreate)}: ${error instanceof Error ? error.message : String(error)}`,
-            error instanceof Error ? error.stack : undefined,
+      if (data.rule) {
+        if (!this.areAllRuleFieldsNull(data.rule)) {
+          const ruleToCreate: CreateRuleDto = data.rule;
+          this.logger.debug(
+            `Rule data provided and is not all nulls. Attempting to create rule: ${JSON.stringify(ruleToCreate)}`,
           );
+          try {
+            const createdRule = await this.ruleService.create(ruleToCreate, tx); // Pass tx
 
-          throw error;
+            if (createdRule && createdRule.id) {
+              ruleIdToLink = createdRule.id;
+              this.logger.debug(
+                `Rule created successfully with ID: ${ruleIdToLink}`,
+              );
+            } else if (createdRule) {
+              this.logger.warn(
+                `Rule service returned a rule object without an ID for rule data: ${JSON.stringify(ruleToCreate)}. Question: '${data.title}'. Proceeding without linking rule.`,
+              );
+            } else {
+              this.logger.log(
+                `Rule service returned null/undefined for rule data: ${JSON.stringify(ruleToCreate)}. Question: '${data.title}'. Proceeding without linking rule.`,
+              );
+            }
+          } catch (error) {
+            this.logger.error(
+              `Error creating rule for question '${data.title}' with rule data ${JSON.stringify(ruleToCreate)}: ${error instanceof Error ? error.message : String(error)}`,
+              error instanceof Error ? error.stack : undefined,
+            );
+            throw error; // This will cause the transaction to roll back
+          }
+        } else {
+          this.logger.log(
+            `Rule data provided for question '${data.title}' but all fields were null or object was empty. Skipping rule creation. Rule data: ${JSON.stringify(data.rule)}`,
+          );
         }
-      } else {
-        this.logger.log(
-          `Rule data provided for question '${data.title}' but all fields were null or object was empty. Skipping rule creation. Rule data: ${JSON.stringify(data.rule)}`,
-        );
       }
-    }
 
-    const questionCreateInput: Prisma.QuestionCreateInput = {
-      title: data.title,
-      description: data.description,
-      type: data.type,
-    };
-
-    if (ruleIdToLink) {
-      questionCreateInput.rule = {
-        connect: {
-          id: ruleIdToLink,
-        },
+      const questionCreateInput: Prisma.QuestionCreateInput = {
+        title: data.title,
+        description: data.description,
+        type: data.type,
       };
-      this.logger.debug(`Linking question to ruleId: ${ruleIdToLink}`);
-    }
 
-    if (data.options && data.options.length > 0) {
-      questionCreateInput.options = {
-        create: data.options.map((option) => ({
-          description: option.description,
-          score: option.score,
-        })),
-      };
-      this.logger.debug(`Adding ${data.options.length} options to question.`);
-    }
+      if (ruleIdToLink) {
+        questionCreateInput.rule = {
+          connect: { id: ruleIdToLink },
+        };
+        this.logger.debug(`Linking question to ruleId: ${ruleIdToLink}`);
+      }
 
-    this.logger.log(
-      `Creating question with final input: ${JSON.stringify(questionCreateInput)}`,
-    );
+      if (data.options && data.options.length > 0) {
+        questionCreateInput.options = {
+          create: data.options.map((option) => ({
+            description: option.description,
+            score: option.score,
+          })),
+        };
+        this.logger.debug(`Adding ${data.options.length} options to question.`);
+      }
 
-    const createdQuestion = await this.prisma.question.create({
-      data: questionCreateInput,
-      include: { options: true, rule: true },
+      this.logger.log(
+        `Creating question with final input: ${JSON.stringify(questionCreateInput)}`,
+      );
+
+      const createdQuestion = await tx.question.create({
+        // Use tx
+        data: questionCreateInput,
+        include: { options: true, rule: true },
+      });
+      this.logger.log(
+        `Question created successfully with ID: ${createdQuestion.id}`,
+      );
+      return createdQuestion;
     });
-    this.logger.log(
-      `Question created successfully with ID: ${createdQuestion.id}`,
-    );
-    return createdQuestion;
   }
 
   async findAll(search?: string) {
@@ -168,7 +168,8 @@ export class QuestionService {
 
             const updatedRule = await this.ruleService.update(
               ruleId,
-              ruleDataToUpdate as any /*, tx */,
+              ruleDataToUpdate as UpdateRuleDto,
+              tx,
             );
             updatePayload.rule = { connect: { id: updatedRule.id } };
             this.logger.debug(
@@ -181,7 +182,8 @@ export class QuestionService {
 
             const { id: _id, ...ruleDataToCreate } = ruleDtoWithOptionalId;
             const createdRule = await this.ruleService.create(
-              ruleDataToCreate as CreateRuleDto /*, tx */,
+              ruleDataToCreate as CreateRuleDto,
+              tx,
             );
             updatePayload.rule = { connect: { id: createdRule.id } };
             this.logger.debug(

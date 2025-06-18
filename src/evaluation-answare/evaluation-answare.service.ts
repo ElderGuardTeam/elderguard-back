@@ -1,73 +1,280 @@
 import {
-  BadRequestException,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { CreateEvaluationAnswareDto } from './dto/create-evaluation-answare.dto';
-import { UpdateEvaluationAnswareDto } from './dto/update-evaluation-answare.dto';
+import { CreateFormAnswareNestedDto } from './dto/create-form-answare-nested.dto';
 import { PrismaService } from 'src/database/prisma.service';
-import { QuestionType, EvaluationAnswareStatus, Prisma } from '@prisma/client';
+import {
+  RuleEngineService,
+  EvaluationContext,
+} from '../common/rule-engine/rule-engine.service';
+import { AddFormAnswareDto } from './dto/add-form-answare.dto';
+import { Prisma, Elderly } from '@prisma/client';
 
-interface ProcessedFormAnswareData {
-  formId: string;
-  elderlyId: string;
-  techProfessionalId: string;
-  totalScore: number | null;
-  questionsAnswares: Prisma.QuestionAnswerCreateNestedManyWithoutFormAnswareInput;
-  updateData: Prisma.FormAnswareUpdateWithoutEvaluationAnswareInput;
-}
 @Injectable()
 export class EvaluationAnswareService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ruleEngine: RuleEngineService,
+  ) {}
 
-  async create(dto: CreateEvaluationAnswareDto) {
-    const { evaluationId, formAnswares = [] } = dto;
-
-    const evaluation = await this.prisma.evaluation.findUnique({
-      where: { id: evaluationId },
-    });
-    if (!evaluation) {
-      throw new NotFoundException(
-        `Evaluation with ID ${evaluationId} not found.`,
+  /**
+   * Cria o registro principal de EvaluationAnsware com a resposta do PRIMEIRO formulário.
+   */
+  async create(createDto: CreateEvaluationAnswareDto) {
+    if (!createDto.formAnswares || createDto.formAnswares.length !== 1) {
+      throw new BadRequestException(
+        'A criação de uma avaliação deve conter exatamente uma resposta de formulário.',
       );
     }
 
-    let calculatedEvaluationTotalScore = 0;
+    return this.prisma.$transaction(async (prisma) => {
+      // Busca o idoso para passar ao contexto das regras
+      const elderly = await prisma.elderly.findUnique({
+        where: { id: createDto.elderlyId },
+      });
+      if (!elderly) {
+        throw new NotFoundException(
+          `Idoso com ID ${createDto.elderlyId} não encontrado.`,
+        );
+      }
 
-    const processedFormAnswares = await this.processFormAnswaresDto(
-      formAnswares,
-      (score) => (calculatedEvaluationTotalScore += score),
-    );
+      const evaluationAnsware = await prisma.evaluationAnsware.create({
+        data: {
+          elderlyId: createDto.elderlyId,
+          evaluationId: createDto.evaluationId,
+          status: 'IN_PROGRESS',
+        },
+      });
 
-    return this.prisma.evaluationAnsware.create({
-      data: {
-        evaluationId,
-        scoreTotal: calculatedEvaluationTotalScore,
-        status: EvaluationAnswareStatus.IN_PROGRESS,
-        formAnswares: {
-          create: processedFormAnswares.map((pfa) => ({
-            form: { connect: { id: pfa.formId } },
-            idoso: { connect: { id: pfa.elderlyId } },
-            professional: { connect: { id: pfa.techProfessionalId } },
-            totalScore: pfa.totalScore,
-            questionsAnswares: pfa.questionsAnswares,
-          })),
+      // Processa e salva o primeiro formulário
+      await this.processAndScoreForm(
+        prisma,
+        evaluationAnsware.id,
+        createDto.formAnswares[0],
+        elderly, // Passa o objeto 'elderly'
+        createDto.professionalId, // Passa o 'professionalId'
+      );
+
+      return this.findOne(evaluationAnsware.id);
+    });
+  }
+
+  /**
+   * Adiciona a resposta de um novo formulário a uma EvaluationAnsware existente.
+   */
+  async addFormAnsware(id: string, addDto: AddFormAnswareDto) {
+    return this.prisma.$transaction(async (prisma) => {
+      const evaluationAnsware = await prisma.evaluationAnsware.findUnique({
+        where: { id },
+        include: { elderly: true }, // Inclui o idoso na busca
+      });
+
+      if (!evaluationAnsware) {
+        throw new NotFoundException(
+          `Resposta da Avaliação com ID ${id} não encontrada.`,
+        );
+      }
+
+      const { elderly } = evaluationAnsware;
+
+      // Processa e salva o novo formulário de forma aditiva
+      await this.processAndScoreForm(
+        prisma,
+        evaluationAnsware.id,
+        addDto.formAnsware,
+        elderly, // Passa o objeto 'elderly'
+        addDto.professionalId, // Passa o 'professionalId' da avaliação existente
+      );
+
+      return this.findOne(id);
+    });
+  }
+
+  /**
+   * Lógica centralizada para processar e pontuar UM ÚNICO formulário.
+   * @private
+   */
+  private async processAndScoreForm(
+    prisma: Prisma.TransactionClient,
+    evaluationAnswareId: string,
+    formAnswareDto: CreateFormAnswareNestedDto, // Mantido como 'any' para flexibilidade com o DTO
+    elderly: Elderly,
+    professionalId: string,
+  ) {
+    // 1. BUSCA CORRIGIDA: Navegando através das tabelas de relacionamento
+    const form = await prisma.form.findUnique({
+      where: { id: formAnswareDto.formId },
+      include: {
+        rule: true, // Relação singular com Rule
+        // Para buscar questões dentro de seções: Form -> Seccion -> questionsRel -> question
+        seccions: {
+          include: {
+            rule: true,
+            questionsRel: {
+              // Acessa a tabela pivo Seccion_has_Question
+              include: {
+                question: {
+                  // Acessa a entidade Question real
+                  include: {
+                    rule: true,
+                    options: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        // Para buscar questões diretas do formulário: Form -> questionsRel -> question
+        questionsRel: {
+          // Acessa a tabela pivo Form_has_Question
+          orderBy: { index: 'asc' },
+          include: {
+            question: {
+              // Acessa a entidade Question real
+              include: {
+                rule: true,
+                options: true,
+              },
+            },
+          },
         },
       },
+    });
+
+    if (!form) {
+      throw new NotFoundException(
+        `Formulário com ID ${formAnswareDto.formId} não encontrado.`,
+      );
+    }
+
+    // 2. LÓGICA ATUALIZADA: Extrai as questões da nova estrutura de dados
+    const topLevelQuestions = form.questionsRel.map((rel) => rel.question);
+    const sectionQuestions = form.seccions.flatMap((sec) =>
+      sec.questionsRel.map((rel) => rel.question),
+    );
+    const allQuestionsInForm = [...topLevelQuestions, ...sectionQuestions];
+
+    // O resto da lógica de cálculo permanece a mesma, pois agora opera sobre 'allQuestionsInForm'
+
+    const allQuestionScores: { questionId: string; score: number }[] = [];
+    for (const question of allQuestionsInForm) {
+      const answareDto = formAnswareDto.questionsAnswares.find(
+        (q) => q.questionId === question.id,
+      );
+      if (!answareDto) continue;
+
+      const selectedOptions = question.options
+        .filter((opt) =>
+          answareDto.optionAnswers?.some((ans) => ans.optionId === opt.id),
+        )
+        .map((opt) => ({
+          ...opt,
+          description: opt.description ?? '',
+        }));
+      const questionContext: EvaluationContext = { selectedOptions, elderly };
+      const score = this.ruleEngine.calculateScore(
+        question.rule ? [question.rule] : [],
+        questionContext,
+      ); // Envia a regra como um array
+      allQuestionScores.push({ questionId: question.id, score });
+    }
+
+    const seccionScores: { seccionId: string; score: number }[] = [];
+    for (const seccion of form.seccions) {
+      const questionScoresForThisSeccion = allQuestionScores.filter((qs) =>
+        seccion.questionsRel.some((rel) => rel.questionId === qs.questionId),
+      );
+      const seccionContext: EvaluationContext = {
+        questionScores: questionScoresForThisSeccion,
+        elderly,
+      };
+      const score = this.ruleEngine.calculateScore(
+        seccion.rule ? [seccion.rule] : [],
+        seccionContext,
+      );
+      seccionScores.push({ seccionId: seccion.id, score });
+    }
+
+    const scoresOutsideSeccion = allQuestionScores.filter((qs) =>
+      form.questionsRel.some((rel) => rel.questionId === qs.questionId),
+    );
+    const formContext: EvaluationContext = {
+      questionScores: scoresOutsideSeccion,
+      seccionScores,
+      elderly,
+    };
+    const formScore = this.ruleEngine.calculateScore(
+      form.rule ? [form.rule] : [],
+      formContext,
+    );
+
+    // 3. Persistência dos dados (sem alterações necessárias aqui)
+    const formAnsware = await prisma.formAnsware.create({
+      data: {
+        formId: form.id,
+        evaluationAnswareId,
+        totalScore: formScore,
+        techProfessionalId: professionalId,
+        elderlyId: elderly.id,
+      },
+    });
+
+    for (const questionAnswareDto of formAnswareDto.questionsAnswares) {
+      const score =
+        allQuestionScores.find(
+          (qs) => qs.questionId === questionAnswareDto.questionId,
+        )?.score ?? 0;
+      const questionAnsware = await prisma.questionAnswer.create({
+        data: {
+          questionId: questionAnswareDto.questionId,
+          formAnswareId: formAnsware.id,
+          score,
+        },
+      });
+      if (questionAnswareDto.optionAnswers) {
+        await prisma.optionAnswer.createMany({
+          data: questionAnswareDto.optionAnswers.map((opt) => ({
+            optionId: opt.optionId,
+            questionAnswerId: questionAnsware.id,
+            // Add 'score' if it's required, set to a default value if needed
+            score: opt.score ?? 0,
+          })),
+        });
+      }
+    }
+  }
+
+  // findAll, findOne, e remove permanecem os mesmos
+  async findAll() {
+    return this.prisma.evaluationAnsware.findMany({
       include: {
+        elderly: { select: { id: true, name: true } },
+        evaluation: { select: { id: true, title: true } },
+      },
+      orderBy: { created: 'desc' },
+    });
+  }
+
+  async findOne(id: string) {
+    const evaluationAnsware = await this.prisma.evaluationAnsware.findUnique({
+      where: { id },
+      include: {
+        elderly: true,
         evaluation: true,
         formAnswares: {
+          orderBy: { created: 'asc' },
           include: {
-            form: true,
-            idoso: true,
-            professional: true,
+            form: { select: { title: true } },
             questionsAnswares: {
+              orderBy: { created: 'asc' },
               include: {
-                question: true,
-                selectedOption: true,
+                question: { select: { title: true, type: true } },
                 optionAnswers: {
                   include: {
-                    option: true,
+                    option: { select: { description: true, score: true } },
                   },
                 },
               },
@@ -76,326 +283,24 @@ export class EvaluationAnswareService {
         },
       },
     });
-  }
 
-  private async processFormAnswaresDto(
-    formAnswareDtos: CreateEvaluationAnswareDto['formAnswares'] | undefined,
-    updateEvaluationScoreCallback: (formScore: number) => void,
-  ): Promise<Array<ProcessedFormAnswareData>> {
-    if (!formAnswareDtos || formAnswareDtos.length === 0) {
-      return [];
-    }
-
-    const formIds = formAnswareDtos.map((dto) => dto.formId);
-    const elderlyIds = formAnswareDtos.map((dto) => dto.elderlyId);
-    const techProfessionalIds = formAnswareDtos.map(
-      (dto) => dto.techProfessionalId,
-    );
-    const questionIds = formAnswareDtos.flatMap(
-      (dto) => dto.questionsAnswares?.map((qa) => qa.questionId) || [],
-    );
-
-    const [forms, elderlies, professionals, questionsWithOptions] =
-      await Promise.all([
-        this.prisma.form.findMany({ where: { id: { in: formIds } } }),
-        this.prisma.elderly.findMany({ where: { id: { in: elderlyIds } } }),
-        this.prisma.professional.findMany({
-          where: { id: { in: techProfessionalIds } },
-        }),
-        this.prisma.question.findMany({
-          where: { id: { in: questionIds } },
-          include: { options: true },
-        }),
-      ]);
-
-    const formsMap = new Map(forms.map((f) => [f.id, f]));
-    const elderliesMap = new Map(elderlies.map((e) => [e.id, e]));
-    const professionalsMap = new Map(professionals.map((p) => [p.id, p]));
-    const questionsMap = new Map(questionsWithOptions.map((q) => [q.id, q]));
-
-    return Promise.all(
-      formAnswareDtos.map(async (formAnswareDto) => {
-        const form = formsMap.get(formAnswareDto.formId);
-        if (!form)
-          throw new NotFoundException(
-            `Form with ID ${formAnswareDto.formId} not found.`,
-          );
-
-        const elderly = elderliesMap.get(formAnswareDto.elderlyId);
-        if (!elderly)
-          throw new NotFoundException(
-            `Elderly with ID ${formAnswareDto.elderlyId} not found.`,
-          );
-
-        const professional = professionalsMap.get(
-          formAnswareDto.techProfessionalId,
-        );
-        if (!professional)
-          throw new NotFoundException(
-            `Professional with ID ${formAnswareDto.techProfessionalId} not found.`,
-          );
-
-        let calculatedFormTotalScore = 0;
-        const questionsAnswaresData = await Promise.all(
-          // eslint-disable-next-line @typescript-eslint/require-await
-          (formAnswareDto.questionsAnswares || []).map(async (qaDto) => {
-            const question = questionsMap.get(qaDto.questionId);
-            if (!question)
-              throw new NotFoundException(
-                `Question with ID ${qaDto.questionId} not found.`,
-              );
-
-            let questionScore = qaDto.score ?? 0;
-
-            if (
-              qaDto.selectedOptionId &&
-              (question.type === QuestionType.SELECT ||
-                question.type === QuestionType.BOOLEAN)
-            ) {
-              const selectedOption = question.options.find(
-                (opt) => opt.id === qaDto.selectedOptionId,
-              );
-              if (!selectedOption) {
-                throw new BadRequestException(
-                  `Selected option ID ${qaDto.selectedOptionId} not found for question ${qaDto.questionId}.`,
-                );
-              }
-              questionScore = selectedOption.score;
-            } else if (
-              qaDto.optionAnswers?.length &&
-              question.type === QuestionType.MULTISELECT
-            ) {
-              questionScore = 0;
-              for (const oa of qaDto.optionAnswers) {
-                const optionExists = question.options.some(
-                  (optDb) => optDb.id === oa.optionId,
-                );
-                if (!optionExists) {
-                  throw new BadRequestException(
-                    `Option with ID ${oa.optionId} not found for question ${qaDto.questionId}.`,
-                  );
-                }
-
-                questionScore += oa.score;
-              }
-            }
-            calculatedFormTotalScore += questionScore;
-
-            return {
-              questionId: qaDto.questionId,
-              answerText: qaDto.answerText,
-              answerNumber: qaDto.answerNumber,
-              answerImage: qaDto.answerImage,
-              answerBoolean: qaDto.answerBoolean,
-              selectedOptionId: qaDto.selectedOptionId,
-              score: questionScore,
-              optionAnswers: qaDto.optionAnswers
-                ? { create: qaDto.optionAnswers.map((oa) => ({ ...oa })) }
-                : undefined,
-            };
-          }),
-        );
-
-        updateEvaluationScoreCallback(calculatedFormTotalScore);
-
-        return {
-          formId: formAnswareDto.formId,
-          elderlyId: formAnswareDto.elderlyId,
-          techProfessionalId: formAnswareDto.techProfessionalId,
-          totalScore: calculatedFormTotalScore,
-          questionsAnswares: { create: questionsAnswaresData },
-
-          updateData: {
-            idoso: { connect: { id: formAnswareDto.elderlyId } },
-            professional: {
-              connect: { id: formAnswareDto.techProfessionalId },
-            },
-            totalScore: calculatedFormTotalScore,
-            questionsAnswares: {
-              deleteMany: {},
-              create: questionsAnswaresData,
-            },
-          },
-        };
-      }),
-    );
-  }
-
-  async findAll() {
-    return this.prisma.evaluationAnsware.findMany({
-      include: {
-        evaluation: true,
-        formAnswares: {
-          include: {
-            form: true,
-            idoso: true,
-            professional: true,
-            questionsAnswares: {
-              include: {
-                question: true,
-                selectedOption: true,
-                optionAnswers: { include: { option: true } },
-              },
-            },
-          },
-        },
-      },
-    });
-  }
-
-  async findOne(id: string) {
-    const evaluationAnsware = await this.prisma.evaluationAnsware.findUnique({
-      where: { id },
-      include: {
-        evaluation: true,
-        formAnswares: {
-          include: {
-            form: true,
-            idoso: true,
-            professional: true,
-            questionsAnswares: {
-              include: {
-                question: true,
-                selectedOption: true,
-                optionAnswers: { include: { option: true } },
-              },
-            },
-          },
-        },
-      },
-    });
     if (!evaluationAnsware) {
-      throw new NotFoundException(`EvaluationAnsware with ID ${id} not found.`);
+      throw new NotFoundException(
+        `Resposta da Avaliação com ID ${id} não encontrada.`,
+      );
     }
     return evaluationAnsware;
   }
 
-  async update(id: string, dto: UpdateEvaluationAnswareDto) {
-    const {
-      status,
-      formAnswares: formAnswareDtos,
-      evaluationId: dtoEvaluationId,
-      scoreTotal: dtoScoreTotal,
-    } = dto;
-
-    const existingEvaluationAnsware =
-      await this.prisma.evaluationAnsware.findUnique({
-        where: { id },
-      });
-
-    if (!existingEvaluationAnsware) {
-      throw new NotFoundException(`EvaluationAnsware with ID ${id} not found.`);
-    }
-
-    if (
-      dtoEvaluationId &&
-      dtoEvaluationId !== existingEvaluationAnsware.evaluationId
-    ) {
-      throw new BadRequestException(
-        "Cannot change the 'evaluationId' of an existing EvaluationAnsware.",
-      );
-    }
-
-    let calculatedEvaluationTotalScore = 0;
-    const updatePayload: Prisma.EvaluationAnswareUpdateInput = {};
-
-    if (status) {
-      updatePayload.status = status;
-      if (status === EvaluationAnswareStatus.COMPLETED) {
-        updatePayload.completedAt = new Date();
-      } else {
-        if (existingEvaluationAnsware.status === 'COMPLETED') {
-          updatePayload.completedAt = null;
-        }
-      }
-    }
-
-    if (formAnswareDtos) {
-      const processedFormAnswaresForUpsert = await this.processFormAnswaresDto(
-        formAnswareDtos,
-        (formScore) => (calculatedEvaluationTotalScore += formScore),
-      );
-
-      updatePayload.scoreTotal = calculatedEvaluationTotalScore;
-      updatePayload.formAnswares = updatePayload.formAnswares ?? {};
-      updatePayload.formAnswares = {
-        upsert: processedFormAnswaresForUpsert.map((pfa) => ({
-          where: {
-            evaluationAnswareId_formId: {
-              evaluationAnswareId: id,
-              formId: pfa.formId,
-            },
-          },
-          create: {
-            form: { connect: { id: pfa.formId } },
-            idoso: { connect: { id: pfa.elderlyId } },
-            professional: { connect: { id: pfa.techProfessionalId } },
-            totalScore: pfa.totalScore,
-            questionsAnswares: pfa.questionsAnswares,
-          },
-          update: pfa.updateData,
-        })),
-      };
-
-      const formIdsInDto = formAnswareDtos.map((fa) => fa.formId);
-      updatePayload.formAnswares.deleteMany = {
-        evaluationAnswareId: id,
-        formId: { notIn: formIdsInDto },
-      };
-    } else if (dtoScoreTotal !== undefined) {
-      updatePayload.scoreTotal = dtoScoreTotal;
-    }
-    return this.prisma.evaluationAnsware.update({
-      where: { id },
-      data: updatePayload,
-      include: {
-        evaluation: true,
-        formAnswares: {
-          include: {
-            form: true,
-            idoso: true,
-            professional: true,
-            questionsAnswares: {
-              include: {
-                question: true,
-                selectedOption: true,
-                optionAnswers: { include: { option: true } },
-              },
-            },
-          },
-        },
-      },
-    });
-  }
-
   async remove(id: string) {
-    return this.prisma.$transaction(async (tx) => {
-      const formAnswares = await tx.formAnsware.findMany({
-        where: { evaluationAnswareId: id },
-        select: { id: true },
-      });
-      const formAnswareIds = formAnswares.map((fa) => fa.id);
-
-      if (formAnswareIds.length > 0) {
-        const questionAnswares = await tx.questionAnswer.findMany({
-          where: { formAnswareId: { in: formAnswareIds } },
-          select: { id: true },
-        });
-        const questionAnswerIds = questionAnswares.map((qa) => qa.id);
-
-        if (questionAnswerIds.length > 0) {
-          await tx.optionAnswer.deleteMany({
-            where: { questionAnswerId: { in: questionAnswerIds } },
-          });
-        }
-        await tx.questionAnswer.deleteMany({
-          where: { formAnswareId: { in: formAnswareIds } },
-        });
-      }
-      await tx.formAnsware.deleteMany({
-        where: { evaluationAnswareId: id },
-      });
-      return tx.evaluationAnsware.delete({ where: { id } });
+    const existing = await this.prisma.evaluationAnsware.findUnique({
+      where: { id },
     });
+    if (!existing) {
+      throw new NotFoundException(
+        `Resposta da Avaliação com ID ${id} não encontrada.`,
+      );
+    }
+    return this.prisma.evaluationAnsware.delete({ where: { id } });
   }
 }

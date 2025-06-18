@@ -18,10 +18,11 @@ import { FormModule } from './form/form.module';
 import { EvaluationModule } from './evaluation/evaluation.module';
 import { EvaluationAnswareModule } from './evaluation-answare/evaluation-answare.module';
 import { FormAnswareModule } from './form-answare/form-answare.module';
+import { RuleBuilderService } from './common/rule-builder/rule-builder.service';
 
 @Module({
   imports: [DatabaseModule, ElderlyModule, ContactModule, AddressModule, UserModule, ProfessionalModule, AuthModule, MailModule, QuestionModule, OptionModule, RuleModule, SeccionModule, FormModule, EvaluationModule, EvaluationAnswareModule, FormAnswareModule],
   controllers: [AppController],
-  providers: [AppService, RuleEngineService],
+  providers: [AppService, RuleEngineService, RuleBuilderService],
 })
 export class AppModule {}

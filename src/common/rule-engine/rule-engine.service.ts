@@ -1,133 +1,94 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-implied-eval */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { RuleType } from '@prisma/client';
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import { Injectable } from '@nestjs/common';
+import { Rule } from '@prisma/client';
+import { create, all } from 'mathjs';
+
+// A interface EvaluationContext permanece a mesma
+export interface EvaluationContext {
+  questionScores?: { questionId: string; score: number }[];
+  seccionScores?: { seccionId: string; score: number }[];
+  selectedOptions?: { score: number; description: string }[];
+  answeredQuestions?: number;
+  totalQuestions?: number;
+  elderly?: { education: string };
+}
 
 @Injectable()
 export class RuleEngineService {
-  /**
-   * Avalia uma única regra com base no tipo
-   * @param type Tipo da regra (CONDITIONAL, SUM, ARITHMETIC)
-   * @param valores Parâmetros da regra (JSON ou CSV)
-   * @param operacao Expressão aritmética para ARITHMETIC
-   * @param answer Valor ou coleção de valores da resposta
-   */
-  evaluate(
-    type: RuleType,
-    values: string | null,
-    operation: string | null,
-    answer: number | boolean | string | Array<number>,
-  ): number | boolean {
-    switch (type) {
-      case RuleType.CONDITIONAL: {
-        return this._evaluateConditional(values, operation, answer);
-      }
-      case RuleType.SUM: {
-        return this._evaluateSum(answer);
-      }
-      case RuleType.ARITHMETIC: {
-        return this._evaluateArithmetic(values, operation);
-      }
-      default:
-        throw new BadRequestException('Tipo de regra desconhecido');
-    }
+  private math;
+
+  constructor() {
+    this.math = create(all);
   }
 
-  private _evaluateConditional(
-    values: string | null,
-    operation: string | null,
-    answer: number | boolean | string | Array<number>,
-  ): boolean {
-    if (values == null || operation == null) {
-      throw new BadRequestException(
-        'Regra condicional: "values" e "operation" são obrigatórios.',
-      );
-    }
-    // ATENÇÃO: Number(answer) pode ser NaN se answer for um array.
-    // Considerar validação mais robusta para 'answer' neste contexto.
-    const threshold = Number(values);
-    const val = Number(answer);
+  public calculateScore(rules: Rule[], context: EvaluationContext): number {
+    const sortedRules = [...rules].sort((a, b) => a.priority - b.priority);
 
-    if (isNaN(val) || isNaN(threshold)) {
-      throw new BadRequestException(
-        'Regra condicional: "values" e "answer" devem ser numéricos ou conversíveis para número.',
-      );
-    }
-
-    switch (operation) {
-      case '>':
-        return val > threshold;
-      case '<':
-        return val < threshold;
-      case '>=':
-        return val >= threshold;
-      case '<=':
-        return val <= threshold;
-      case '==':
-        return val == threshold;
-      case '===':
-        return val === threshold; // Note: Number(string) pode não ser o que se espera para ===
-      case '!=':
-        return val != threshold;
-      case '!==':
-        return val !== threshold; // Similar ao ===
-      default:
-        throw new BadRequestException(
-          `Operador condicional '${operation}' não suportado.`,
-        );
-    }
-  }
-
-  private _evaluateSum(
-    answer: number | boolean | string | Array<number>,
-  ): number {
-    if (Array.isArray(answer)) {
-      return answer.reduce((sum, x) => sum + Number(x), 0);
-    }
-    // Se não for array, tenta converter para número.
-    // Se 'answer' for boolean, Number(true) é 1, Number(false) é 0.
-    const numericAnswer = Number(answer);
-    if (isNaN(numericAnswer)) {
-      throw new BadRequestException(
-        'Regra de soma: "answer" deve ser um número ou um array de números.',
-      );
-    }
-    return numericAnswer;
-  }
-
-  private _evaluateArithmetic(
-    values: string | null,
-    operation: string | null,
-  ): number {
-    if (!operation) {
-      throw new BadRequestException('Operação aritmética não fornecida');
-    }
-    // !!! ALERTA DE SEGURANÇA !!!
-    // O uso de new Function() é perigoso e pode levar a vulnerabilidades de injeção de código.
-    // Considere usar uma biblioteca de parsing de expressões matemáticas segura.
-    let context: Record<string, any> = {};
-    if (values) {
-      try {
-        context = JSON.parse(values);
-      } catch {
-        throw new BadRequestException(
-          'Valores (JSON) para expressão aritmética inválidos',
+    if (sortedRules.length > 0) {
+      let finalScore = 0;
+      for (const rule of sortedRules) {
+        const ruleContext = { ...context, currentScore: finalScore };
+        finalScore = this._evaluateExpression(
+          rule.expression ?? '',
+          ruleContext,
         );
       }
+      return finalScore;
     }
 
-    const args = Object.keys(context);
-    const vals = Object.values(context);
-    const fn = new Function(...args, `return ${operation};`);
-    const result = fn(...vals);
-
-    if (typeof result !== 'number' || isNaN(result)) {
-      throw new BadRequestException(
-        'Expressão aritmética não retornou um número válido.',
+    // --- LÓGICA PADRÃO CORRIGIDA ---
+    // Se não houver regras, o comportamento padrão é somar todas as pontuações do contexto.
+    let defaultScore = 0;
+    if (context.seccionScores?.length) {
+      defaultScore += context.seccionScores.reduce(
+        (acc, curr) => acc + curr.score,
+        0,
       );
     }
-    return result;
+    if (context.questionScores?.length) {
+      defaultScore += context.questionScores.reduce(
+        (acc, curr) => acc + curr.score,
+        0,
+      );
+    }
+    if (defaultScore > 0) {
+      return defaultScore;
+    }
+    // Apenas se não houver seções ou questões, usa as opções (para o nível de questão)
+    if (context.selectedOptions?.length) {
+      return context.selectedOptions.reduce((acc, opt) => acc + opt.score, 0);
+    }
+
+    return 0;
+  }
+
+  private _evaluateExpression(expression: string, context: any): number {
+    try {
+      const scope = {
+        ...context,
+        SUM: (arr: any[]) =>
+          arr?.reduce((acc, curr) => acc + (curr.score ?? 0), 0) ?? 0,
+        AVG: (arr: any[]) => {
+          if (!arr || arr.length === 0) return 0;
+          const sum = arr.reduce((acc, curr) => acc + (curr.score ?? 0), 0);
+          return sum / arr.length;
+        },
+        COUNT: (arr: any[]) => (arr ? arr.length : 0),
+        MIN: Math.min,
+        MAX: Math.max,
+      };
+
+      const result = this.math.evaluate(expression, scope);
+      return typeof result === 'number' ? result : 0;
+    } catch (error) {
+      console.error(
+        `[RuleEngine] Erro ao avaliar a expressão: "${expression}"`,
+        error,
+      );
+      return 0;
+    }
   }
 }
