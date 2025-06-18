@@ -23,7 +23,7 @@ export class CreateProfessionalDto {
 
   @IsString()
   @IsNotEmpty()
-  password: string;
+  password?: string;
 
   @IsEnum(UserType)
   userType: UserType;

@@ -37,8 +37,8 @@ export class SeccionService {
     return values.every((value) => value === null);
   }
 
-  async create(dto: CreateSeccionDto) {
-    return this.prisma.$transaction(async (tx) => {
+  async create(dto: CreateSeccionDto, pTx?: Prisma.TransactionClient) {
+    const logic = async (tx: Prisma.TransactionClient) => {
       this.logger.debug(
         `Attempting to create seccion with data: ${JSON.stringify(dto)}`,
       );
@@ -59,7 +59,8 @@ export class SeccionService {
           try {
             const { id, ...ruleDataToCreate } = dto.rule;
             const createdRule = await this.ruleService.create(
-              ruleDataToCreate as CreateRuleDto /*, tx */,
+              ruleDataToCreate as CreateRuleDto,
+              tx,
             );
             if (createdRule && createdRule.id) {
               ruleIdToLink = createdRule.id;
@@ -145,7 +146,13 @@ export class SeccionService {
           },
         },
       });
-    });
+    };
+
+    if (pTx) {
+      return logic(pTx);
+    } else {
+      return this.prisma.$transaction(logic);
+    }
   }
 
   async findAll() {
@@ -175,8 +182,12 @@ export class SeccionService {
     });
   }
 
-  async update(id: string, dto: UpdateSeccionDto) {
-    return this.prisma.$transaction(async (tx) => {
+  async update(
+    id: string,
+    dto: UpdateSeccionDto,
+    pTx?: Prisma.TransactionClient,
+  ) {
+    const logic = async (tx: Prisma.TransactionClient) => {
       const existingSeccion = await tx.seccion.findUnique({
         where: { id },
       });
@@ -211,7 +222,8 @@ export class SeccionService {
             const { id: _, ...ruleDataToUpdate } = ruleInput;
             const updatedRule = await this.ruleService.update(
               ruleInputId,
-              ruleDataToUpdate as UpdateRuleDto /*, tx */,
+              ruleDataToUpdate as UpdateRuleDto,
+              tx,
             );
             updatePayload.rule = { connect: { id: updatedRule.id } };
           } else {
@@ -221,7 +233,8 @@ export class SeccionService {
 
             const { id: _, ...ruleDataToCreate } = ruleInput;
             const createdRule = await this.ruleService.create(
-              ruleDataToCreate as CreateRuleDto /*, tx */,
+              ruleDataToCreate as CreateRuleDto,
+              tx,
             );
             updatePayload.rule = { connect: { id: createdRule.id } };
           }
@@ -275,18 +288,34 @@ export class SeccionService {
           },
         },
       });
-    });
+    };
+
+    if (pTx) {
+      return logic(pTx);
+    } else {
+      return this.prisma.$transaction(logic);
+    }
   }
 
-  async remove(id: string) {
-    await this.prisma.seccion_has_Question.deleteMany({
-      where: { seccionId: id },
-    });
+  async remove(id: string, pTx?: Prisma.TransactionClient) {
+    const prismaClient = pTx || this.prisma;
 
-    const deletedSeccion = await this.prisma.seccion.delete({ where: { id } });
-    this.logger.log(
-      `Seccion ID: ${id} and its question relations removed successfully.`,
-    );
-    return deletedSeccion;
+    // Se não estiver dentro de uma transação externa, crie uma para garantir atomicidade.
+    const operation = async (
+      client: Prisma.TransactionClient | PrismaService,
+    ) => {
+      await client.seccion_has_Question.deleteMany({
+        where: { seccionId: id },
+      });
+      const deletedSeccion = await client.seccion.delete({ where: { id } });
+      this.logger.log(
+        `Seccion ID: ${id} and its question relations removed successfully.`,
+      );
+      return deletedSeccion;
+    };
+
+    return pTx
+      ? operation(pTx)
+      : this.prisma.$transaction((tx) => operation(tx));
   }
 }

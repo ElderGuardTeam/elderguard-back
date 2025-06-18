@@ -20,4 +20,5 @@ export class CreateSeccionDto {
 
   @IsArray()
   questionsIds: string[];
+  id: any;
 }
