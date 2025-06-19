@@ -130,7 +130,6 @@ export class SeccionService {
         const questionRelations = questionsIds.map((questionId, index) => ({
           seccionId: createdSeccion.id,
           questionId: questionId,
-          index: index,
         }));
         await tx.seccion_has_Question.createMany({
           data: questionRelations,
@@ -271,7 +270,6 @@ export class SeccionService {
           const questionRelations = questionsIds.map((questionId, index) => ({
             seccionId: id,
             questionId: questionId,
-            index: index,
           }));
           await tx.seccion_has_Question.createMany({ data: questionRelations });
         }

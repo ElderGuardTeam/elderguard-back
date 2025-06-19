@@ -1,6 +1,12 @@
 import { UserType } from '@prisma/client';
 import { Transform } from 'class-transformer';
-import { IsEmail, IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateProfessionalDto {
   @IsString()
@@ -22,7 +28,7 @@ export class CreateProfessionalDto {
   email: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   password?: string;
 
   @IsEnum(UserType)

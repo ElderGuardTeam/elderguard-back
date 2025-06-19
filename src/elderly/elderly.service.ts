@@ -177,7 +177,7 @@ export class ElderlyService {
             number: data.address?.number,
             complement: data.address?.complement,
             neighborhood: data.address?.neighborhood,
-            city: data.address?.city?.replace(/\D/g, '') ?? '',
+            city: data.address?.city,
             state: data.address?.state,
             zipCode: data.address?.zipCode,
           },
