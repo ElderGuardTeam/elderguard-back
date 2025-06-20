@@ -6,7 +6,7 @@ export class AddFormAnswareDto {
   @IsDefined()
   @ValidateNested()
   @Type(() => CreateFormAnswareNestedDto)
-  formAnsware: CreateFormAnswareNestedDto;
+  formAnswares: CreateFormAnswareNestedDto;
 
   @IsUUID()
   @IsNotEmpty()

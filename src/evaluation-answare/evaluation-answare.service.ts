@@ -103,7 +103,7 @@ export class EvaluationAnswareService {
       await this.processAndScoreForm(
         tx,
         evaluationAnsware.id,
-        addDto.formAnsware,
+        addDto.formAnswares,
         elderly, // Passa o objeto 'elderly'
         addDto.professionalId, // Passa o 'professionalId' da avaliação existente
       );
@@ -270,7 +270,7 @@ export class EvaluationAnswareService {
   async findAll() {
     return this.prisma.evaluationAnsware.findMany({
       include: {
-        elderly: { select: { id: true, name: true } },
+        elderly: { select: { id: true, name: true, cpf: true } },
         evaluation: { select: { id: true, title: true } },
       },
       orderBy: { created: 'desc' },
