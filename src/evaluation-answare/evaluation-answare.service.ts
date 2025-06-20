@@ -68,7 +68,7 @@ export class EvaluationAnswareService {
         createDto.professionalId, // Passa o 'professionalId'
       );
 
-      return this.findOne(evaluationAnsware.id);
+      return this._findEvaluationAnswareById(tx, evaluationAnsware.id);
     });
   }
 
@@ -108,7 +108,7 @@ export class EvaluationAnswareService {
         addDto.professionalId, // Passa o 'professionalId' da avaliação existente
       );
 
-      return this.findOne(id);
+      return this._findEvaluationAnswareById(tx, id);
     });
   }
 
@@ -117,7 +117,7 @@ export class EvaluationAnswareService {
    * @private
    */
   private async processAndScoreForm(
-    tx: Prisma.TransactionClient, // Renamed for clarity within transaction
+    tx: Prisma.TransactionClient,
     evaluationAnswareId: string,
     formAnswareDto: CreateFormAnswareNestedDto,
     elderly: Elderly,
@@ -277,8 +277,11 @@ export class EvaluationAnswareService {
     });
   }
 
-  async findOne(id: string) {
-    const evaluationAnsware = await this.prisma.evaluationAnsware.findUnique({
+  private async _findEvaluationAnswareById(
+    prismaClient: Prisma.TransactionClient | PrismaService,
+    id: string,
+  ) {
+    const evaluationAnsware = await prismaClient.evaluationAnsware.findUnique({
       where: { id },
       include: {
         elderly: true,
@@ -309,6 +312,10 @@ export class EvaluationAnswareService {
       );
     }
     return evaluationAnsware;
+  }
+
+  async findOne(id: string) {
+    return this._findEvaluationAnswareById(this.prisma, id);
   }
 
   async remove(id: string) {
