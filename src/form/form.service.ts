@@ -1,3 +1,4 @@
+/* eslint-disable no-prototype-builtins */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -10,6 +11,7 @@ import { SeccionService } from 'src/seccion/seccion.service';
 import { RuleService } from 'src/rule/rule.service';
 import { Prisma } from '@prisma/client';
 import { CreateRuleDto } from 'src/rule/dto/create-rule.dto';
+import { NotFoundException } from '@nestjs/common';
 import { CreateSeccionDto } from 'src/seccion/dto/create-seccion.dto';
 
 @Injectable()
@@ -199,26 +201,50 @@ export class FormService {
 
   async update(id: string, dto: UpdateFormDto) {
     return this.prisma.$transaction(async (tx) => {
-      let ruleId: string | undefined = undefined;
+      // 1. Fetch current state of the form, including its currently associated seccions
+      const formBeforeUpdate = await tx.form.findUnique({
+        where: { id },
+        include: { seccions: { select: { id: true } } },
+      });
+
+      if (!formBeforeUpdate) {
+        throw new NotFoundException(`Formulário com ID ${id} não encontrado.`);
+      }
+      const currentSeccionIdsOnForm = new Set(
+        formBeforeUpdate.seccions.map((s) => s.id),
+      );
+
+      let ruleIdToConnect: string | undefined = undefined;
+      let shouldDisconnectRule = false;
+
       if (dto.rule) {
-        if (dto.rule.id) {
-          const rule = await this.ruleService.update(
-            dto.rule.id,
-            dto.rule, // Passa o DTO completo da regra
-            tx,
-          );
-          ruleId = rule.id;
+        if (!this.areAllRuleFieldsNull(dto.rule)) {
+          if (dto.rule.id) {
+            const updatedRule = await this.ruleService.update(
+              dto.rule.id,
+              dto.rule,
+              tx,
+            );
+            ruleIdToConnect = updatedRule.id;
+          } else {
+            const { id: _ruleIdIgnored, ...ruleDataToCreate } = dto.rule;
+            const createdRule = await this.ruleService.create(
+              ruleDataToCreate as CreateRuleDto,
+              tx,
+            );
+            ruleIdToConnect = createdRule.id;
+          }
+        }
+      } else if (dto.hasOwnProperty('ruleId')) {
+        // ruleId is explicitly provided (could be string or null)
+        if (dto.rule === null) {
+          shouldDisconnectRule = true;
         } else {
-          const { id: _ruleId, ...ruleData } = dto.rule;
-          const rule = await this.ruleService.create(
-            ruleData as CreateRuleDto,
-            tx,
-          );
-          ruleId = rule.id;
+          ruleIdToConnect = dto.rule;
         }
       }
 
-      const processedSeccionIds: string[] = [];
+      const finalSeccionIdsForForm = new Set<string>();
 
       if (dto.seccions && Array.isArray(dto.seccions)) {
         this.logger.debug(
@@ -226,12 +252,12 @@ export class FormService {
         );
         for (const seccionPayload of dto.seccions) {
           const seccionIdToUpdate = seccionPayload.id;
-
           const {
             id: _sId,
             formId: _fId,
             ...seccionDataForService
           } = seccionPayload;
+          const dataWithFormId = { ...seccionDataForService, formId: id };
 
           if (seccionPayload.rule) {
             if (!this.areAllRuleFieldsNull(seccionPayload.rule)) {
@@ -241,7 +267,7 @@ export class FormService {
                   seccionPayload.rule,
                   tx,
                 );
-                seccionDataForService.ruleId = seccionPayload.rule.id;
+                (dataWithFormId as any).ruleId = seccionPayload.rule.id;
               } else {
                 const { id: _ruleId, ...ruleDataToCreate } =
                   seccionPayload.rule;
@@ -249,15 +275,15 @@ export class FormService {
                   ruleDataToCreate as CreateRuleDto,
                   tx,
                 );
-                seccionDataForService.ruleId = createdRule.id;
+                (dataWithFormId as any).ruleId = createdRule.id;
               }
-              delete seccionDataForService.rule; // Evitar passar o objeto rule se ruleId foi definido
+              delete (dataWithFormId as any).rule;
             } else {
-              delete seccionDataForService.rule;
+              delete (dataWithFormId as any).rule;
             }
           } else if (seccionPayload.rule === null) {
-            seccionDataForService.ruleId = ''; // Sinaliza para SeccionService desconectar
-            delete seccionDataForService.rule;
+            (dataWithFormId as any).ruleId = null; // Sinaliza para SeccionService desconectar
+            delete (dataWithFormId as any).rule;
           }
 
           let savedSeccion;
@@ -265,7 +291,7 @@ export class FormService {
             this.logger.debug(`Updating seccion ID: ${seccionIdToUpdate}`);
             savedSeccion = await this.seccionService.update(
               seccionIdToUpdate,
-              { ...seccionDataForService, formId: id },
+              dataWithFormId as CreateSeccionDto,
               tx,
             );
           } else {
@@ -273,18 +299,36 @@ export class FormService {
               `Creating new seccion with title: ${seccionDataForService.title}`,
             );
             savedSeccion = await this.seccionService.create(
-              {
-                // Garanta que CreateSeccionDto seja usado aqui
-                ...(seccionDataForService as unknown as CreateSeccionDto),
-                formId: id,
-              },
+              dataWithFormId as CreateSeccionDto,
               tx,
             );
           }
-          processedSeccionIds.push(savedSeccion.id);
+          if (savedSeccion && savedSeccion.id) {
+            finalSeccionIdsForForm.add(savedSeccion.id);
+          }
+        }
+      } else if (dto.seccionsIds && Array.isArray(dto.seccionsIds)) {
+        dto.seccionsIds.forEach((sid) => finalSeccionIdsForForm.add(sid));
+        this.logger.debug(
+          `Using seccionsIds from DTO for final set: [${Array.from(finalSeccionIdsForForm).join(', ')}]`,
+        );
+      }
+
+      // 3. Determine seccions to remove and delete them
+      const seccionIdsToDelete = Array.from(currentSeccionIdsOnForm).filter(
+        (existingId) => !finalSeccionIdsForForm.has(existingId),
+      );
+
+      if (seccionIdsToDelete.length > 0) {
+        this.logger.debug(
+          `Deleting seccions no longer associated: [${seccionIdsToDelete.join(', ')}]`,
+        );
+        for (const seccionId of seccionIdsToDelete) {
+          await this.seccionService.remove(seccionId, tx);
         }
       }
 
+      // 4. Prepare form data for update (own fields and direct rule link)
       const {
         rule: _rule,
         seccions: _seccions,
@@ -295,27 +339,20 @@ export class FormService {
 
       const formUpdateData: Prisma.FormUpdateInput = {
         ...restOfDto,
-        ...(ruleId && { rule: { connect: { id: ruleId } } }),
       };
 
-      if (dto.seccions !== undefined) {
+      if (shouldDisconnectRule) {
+        formUpdateData.rule = { disconnect: true };
+      } else if (ruleIdToConnect !== undefined) {
+        formUpdateData.rule = { connect: { id: ruleIdToConnect } };
+      }
+
+      // 5. Set the final state of seccions relation using the processed IDs
+      // This is now safe because seccions that would be disconnected have been deleted.
+      if (dto.seccions !== undefined || dto.seccionsIds !== undefined) {
         formUpdateData.seccions = {
-          set: processedSeccionIds.map((sid) => ({ id: sid })),
+          set: Array.from(finalSeccionIdsForForm).map((sid) => ({ id: sid })),
         };
-        this.logger.debug(
-          `Setting form seccions to: [${processedSeccionIds.join(', ')}] based on processed seccions payload.`,
-        );
-      } else if (dto.seccionsIds !== undefined) {
-        formUpdateData.seccions = {
-          set: dto.seccionsIds.map((sid) => ({ id: sid })),
-        };
-        this.logger.debug(
-          `Setting form seccions to: [${dto.seccionsIds.join(', ')}] based on seccionsIds DTO field.`,
-        );
-      } else {
-        this.logger.debug(
-          'Neither seccions payload nor seccionsIds provided. Form seccion associations will not be changed by "set" operation.',
-        );
       }
 
       const updatedForm = await tx.form.update({
