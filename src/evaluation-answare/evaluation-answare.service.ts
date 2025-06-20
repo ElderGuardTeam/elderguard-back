@@ -30,9 +30,9 @@ export class EvaluationAnswareService {
       );
     }
 
-    return this.prisma.$transaction(async (prisma) => {
+    return this.prisma.$transaction(async (tx) => {
       // Busca o idoso para passar ao contexto das regras
-      const elderly = await prisma.elderly.findUnique({
+      const elderly = await tx.elderly.findUnique({
         where: { id: createDto.elderlyId },
       });
       if (!elderly) {
@@ -41,7 +41,17 @@ export class EvaluationAnswareService {
         );
       }
 
-      const evaluationAnsware = await prisma.evaluationAnsware.create({
+      // Verify Professional existence
+      const professional = await tx.professional.findUnique({
+        where: { id: createDto.professionalId },
+      });
+      if (!professional) {
+        throw new NotFoundException(
+          `Profissional com ID ${createDto.professionalId} não encontrado.`,
+        );
+      }
+
+      const evaluationAnsware = await tx.evaluationAnsware.create({
         data: {
           elderlyId: createDto.elderlyId,
           evaluationId: createDto.evaluationId,
@@ -51,7 +61,7 @@ export class EvaluationAnswareService {
 
       // Processa e salva o primeiro formulário
       await this.processAndScoreForm(
-        prisma,
+        tx,
         evaluationAnsware.id,
         createDto.formAnswares[0],
         elderly, // Passa o objeto 'elderly'
@@ -66,8 +76,8 @@ export class EvaluationAnswareService {
    * Adiciona a resposta de um novo formulário a uma EvaluationAnsware existente.
    */
   async addFormAnsware(id: string, addDto: AddFormAnswareDto) {
-    return this.prisma.$transaction(async (prisma) => {
-      const evaluationAnsware = await prisma.evaluationAnsware.findUnique({
+    return this.prisma.$transaction(async (tx) => {
+      const evaluationAnsware = await tx.evaluationAnsware.findUnique({
         where: { id },
         include: { elderly: true }, // Inclui o idoso na busca
       });
@@ -78,11 +88,20 @@ export class EvaluationAnswareService {
         );
       }
 
+      // Verify Professional existence
+      const professional = await tx.professional.findUnique({
+        where: { id: addDto.professionalId },
+      });
+      if (!professional) {
+        throw new NotFoundException(
+          `Profissional com ID ${addDto.professionalId} não encontrado.`,
+        );
+      }
+
       const { elderly } = evaluationAnsware;
 
-      // Processa e salva o novo formulário de forma aditiva
       await this.processAndScoreForm(
-        prisma,
+        tx,
         evaluationAnsware.id,
         addDto.formAnsware,
         elderly, // Passa o objeto 'elderly'
@@ -98,14 +117,14 @@ export class EvaluationAnswareService {
    * @private
    */
   private async processAndScoreForm(
-    prisma: Prisma.TransactionClient,
+    tx: Prisma.TransactionClient, // Renamed for clarity within transaction
     evaluationAnswareId: string,
-    formAnswareDto: CreateFormAnswareNestedDto, // Mantido como 'any' para flexibilidade com o DTO
+    formAnswareDto: CreateFormAnswareNestedDto,
     elderly: Elderly,
     professionalId: string,
   ) {
     // 1. BUSCA CORRIGIDA: Navegando através das tabelas de relacionamento
-    const form = await prisma.form.findUnique({
+    const form = await tx.form.findUnique({
       where: { id: formAnswareDto.formId },
       include: {
         rule: true, // Relação singular com Rule
@@ -212,7 +231,7 @@ export class EvaluationAnswareService {
     );
 
     // 3. Persistência dos dados (sem alterações necessárias aqui)
-    const formAnsware = await prisma.formAnsware.create({
+    const formAnsware = await tx.formAnsware.create({
       data: {
         formId: form.id,
         evaluationAnswareId,
@@ -227,7 +246,7 @@ export class EvaluationAnswareService {
         allQuestionScores.find(
           (qs) => qs.questionId === questionAnswareDto.questionId,
         )?.score ?? 0;
-      const questionAnsware = await prisma.questionAnswer.create({
+      const questionAnsware = await tx.questionAnswer.create({
         data: {
           questionId: questionAnswareDto.questionId,
           formAnswareId: formAnsware.id,
@@ -235,7 +254,7 @@ export class EvaluationAnswareService {
         },
       });
       if (questionAnswareDto.optionAnswers) {
-        await prisma.optionAnswer.createMany({
+        await tx.optionAnswer.createMany({
           data: questionAnswareDto.optionAnswers.map((opt) => ({
             optionId: opt.optionId,
             questionAnswerId: questionAnsware.id,
