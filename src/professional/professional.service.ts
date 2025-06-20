@@ -83,37 +83,66 @@ export class ProfessionalService {
   }
 
   async update(id: string, data: UpdateProfessionalDto) {
-    const { name, email, phone, ...otherProfessionalData } = data;
+    // Destrinchar os campos do DTO
+    const { name, email, phone, cpf, userType, password } = data;
 
-    const dataToUpdateProfessional: Prisma.ProfessionalUpdateInput = {
-      ...otherProfessionalData,
-    };
-    if (name) dataToUpdateProfessional.name = name;
-    if (email) dataToUpdateProfessional.email = email;
-    if (phone) dataToUpdateProfessional.phone = phone.replace(/\D/g, '');
+    // Preparar dados para atualização da entidade Professional
+    const professionalUpdateData: Prisma.ProfessionalUpdateInput = {};
+    if (name !== undefined) professionalUpdateData.name = name;
+    if (email !== undefined) professionalUpdateData.email = email; // Professional model has email
+    if (phone !== undefined)
+      professionalUpdateData.phone = phone.replace(/\D/g, '');
+    if (cpf !== undefined) professionalUpdateData.cpf = cpf.replace(/\D/g, ''); // Professional model has cpf
+
+    // Preparar dados para atualização da entidade User associada
+    const userUpdateData: Prisma.UserUpdateInput = {};
+    if (name !== undefined) userUpdateData.name = name; // Manter User.name sincronizado
+    if (email !== undefined) userUpdateData.email = email; // Manter User.email sincronizado
+    if (userType !== undefined) userUpdateData.userType = userType;
+    if (password !== undefined && password.length > 0) {
+      userUpdateData.password = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+    }
+    if (cpf !== undefined) {
+      // Se o cpf do profissional mudar, o login do usuário também deve mudar
+      userUpdateData.login = cpf.replace(/\D/g, '');
+    }
 
     return this.prisma.$transaction(async (tx) => {
-      const professionalExists = await tx.professional.findUnique({
+      const professional = await tx.professional.findUnique({
         where: { id },
       });
 
-      if (!professionalExists) {
+      if (!professional) {
         throw new NotFoundException('Profissional não encontrado');
       }
 
-      const updatedProfessional = await tx.professional.update({
-        where: { id },
-        data: dataToUpdateProfessional,
-      });
+      // Verificar unicidade do CPF/login se estiver sendo alterado
+      if (userUpdateData.login && userUpdateData.login !== professional.cpf) {
+        const existingUserWithNewLogin = await tx.user.findUnique({
+          where: { login: userUpdateData.login as string },
+        });
+        if (
+          existingUserWithNewLogin &&
+          existingUserWithNewLogin.id !== professional.userId
+        ) {
+          throw new BadRequestException(
+            'Novo CPF (login) já está cadastrado para outro usuário.',
+          );
+        }
+      }
 
-      const userDataToUpdate: Prisma.UserUpdateInput = {};
-      if (name) userDataToUpdate.name = name;
-      if (email) userDataToUpdate.email = email;
+      let updatedProfessional = professional;
+      if (Object.keys(professionalUpdateData).length > 0) {
+        updatedProfessional = await tx.professional.update({
+          where: { id },
+          data: professionalUpdateData,
+        });
+      }
 
-      if (Object.keys(userDataToUpdate).length > 0) {
+      if (Object.keys(userUpdateData).length > 0) {
         await tx.user.update({
-          where: { id: professionalExists.userId },
-          data: userDataToUpdate,
+          where: { id: professional.userId },
+          data: userUpdateData,
         });
       }
 

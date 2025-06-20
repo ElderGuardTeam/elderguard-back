@@ -190,15 +190,18 @@ export class ElderlyService {
   async delete(id: string) {
     const elderlyData = await this.findOne(id);
 
-    return this.prisma.$transaction(async (tx) => {
-      await tx.elderlyContact.deleteMany({ where: { elderlyId: id } });
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.elderlyContact.deleteMany({ where: { elderlyId: id } });
 
-      await tx.elderly.delete({ where: { id } });
+        await tx.elderly.delete({ where: { id } });
 
-      await this.userService.delete(elderlyData.userId);
+        await this.userService.delete(elderlyData.userId);
 
-      return { message: 'Idoso excluído com sucesso.' };
-    });
+        return { message: 'Idoso excluído com sucesso.' };
+      },
+      { timeout: 10000 }, // Increase timeout to 10 seconds
+    );
   }
 
   async validateIdentity(data: ValidateElderlyDto) {
