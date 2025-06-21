@@ -143,11 +143,11 @@ export class EvaluationAnswareService {
       }
 
       const { elderly } = evaluationAnsware;
-      const { formAnswares: formAnswareDto } = pauseDto;
+      const formAnswareDto = pauseDto.formAnswares[0]; // Access the first element of the array
 
       if (!formAnswareDto) {
         throw new BadRequestException(
-          'A pausa de uma avaliação deve conter uma resposta de formulário para salvar o progresso.',
+          'A pausa de uma avaliação deve conter pelo menos uma resposta de formulário para salvar o progresso.',
         );
       }
 
