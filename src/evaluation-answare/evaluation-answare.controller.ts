@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { EvaluationAnswareService } from './evaluation-answare.service';
 import { CreateEvaluationAnswareDto } from './dto/create-evaluation-answare.dto';
@@ -50,8 +51,8 @@ export class EvaluationAnswareController {
   @Get()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('ADMIN', 'TECH_PROFESSIONAL')
-  findAll() {
-    return this.evaluationAnswareService.findAll();
+  findAll(@Query('search') search?: string) {
+    return this.evaluationAnswareService.findAll(search);
   }
 
   @Get(':id')

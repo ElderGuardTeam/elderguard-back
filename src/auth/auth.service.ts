@@ -28,7 +28,6 @@ export class AuthService {
     throw new UnauthorizedException('Credenciais inválidas');
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
   async login(user: User) {
     const payload = {
       sub: user.id,
@@ -36,16 +35,33 @@ export class AuthService {
       userType: user.userType,
       name: user.name,
     };
-    console.log('Gerando token para:', payload);
     if (user.mustChangePassword) {
       return {
         message: 'ALTER_PASSWORD_REQUIRED',
         userId: user.id, // Retorna o ID para alterar a senha depois
       };
     }
-    return {
-      access_token: this.jwtService.sign(payload),
-    };
+    const access_token = this.jwtService.sign(payload);
+
+    if (user.userType === 'USER') {
+      return {
+        access_token,
+        cpf: user.login,
+      };
+    }
+
+    if (user.userType === 'TECH_PROFESSIONAL' || user.userType === 'ADMIN') {
+      const professional = await this.prisma.professional.findUnique({
+        where: { userId: user.id },
+        select: { id: true },
+      });
+      return {
+        access_token,
+        professionalId: professional?.id,
+      };
+    }
+
+    return { access_token };
   }
 
   async forgotPassword(login: string) {
@@ -67,7 +83,7 @@ export class AuthService {
     if (!user.email) {
       throw new BadRequestException('Usuário não possui um e-mail válido');
     }
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+
     await this.mailService.sendPasswordReset(user.email, resetToken);
 
     return { message: 'E-mail de recuperação enviado' };

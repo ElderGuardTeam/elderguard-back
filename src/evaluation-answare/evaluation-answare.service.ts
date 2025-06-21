@@ -368,8 +368,18 @@ export class EvaluationAnswareService {
     }
   }
 
-  async findAll() {
+  async findAll(search?: string) {
+    const where: Prisma.EvaluationAnswareWhereInput = {};
+
+    if (search) {
+      const cleanedCpf = search.replace(/\D/g, '');
+      where.elderly = {
+        OR: [{ name: { contains: search } }, { cpf: { contains: cleanedCpf } }],
+      };
+    }
+
     return this.prisma.evaluationAnsware.findMany({
+      where,
       include: {
         elderly: { select: { id: true, name: true, cpf: true } },
         evaluation: { select: { id: true, title: true } },
