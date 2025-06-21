@@ -548,6 +548,9 @@ export class EvaluationAnswareService {
               orderBy: { created: 'asc' },
               include: {
                 question: { select: { title: true, type: true } },
+                selectedOption: {
+                  select: { description: true, score: true },
+                },
                 optionAnswers: {
                   include: {
                     option: { select: { description: true, score: true } },
@@ -570,6 +573,89 @@ export class EvaluationAnswareService {
 
   async findOne(id: string) {
     return this._findEvaluationAnswareById(this.prisma, id);
+  }
+
+  async findAllByElderlyId(elderlyId: string) {
+    return this.prisma.evaluationAnsware.findMany({
+      where: {
+        elderlyId,
+      },
+      include: {
+        elderly: true,
+        evaluation: true,
+        formAnswares: {
+          orderBy: { created: 'asc' },
+          include: {
+            form: { select: { id: true, title: true } },
+            questionsAnswares: {
+              orderBy: { created: 'asc' },
+              include: {
+                question: { select: { title: true, type: true } },
+                selectedOption: {
+                  select: { description: true, score: true },
+                },
+                optionAnswers: {
+                  include: {
+                    option: { select: { description: true, score: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { created: 'desc' },
+    });
+  }
+
+  async compareFormScores(formId: string, elderlyId: string) {
+    // 1. Pega a pontuação mais recente do usuário para este formulário
+    const userAnsware = await this.prisma.formAnsware.findFirst({
+      where: {
+        formId,
+        elderlyId,
+        evaluationAnsware: {
+          status: 'COMPLETED',
+        },
+      },
+      orderBy: {
+        created: 'desc',
+      },
+      select: {
+        totalScore: true,
+      },
+    });
+
+    if (!userAnsware) {
+      throw new NotFoundException(
+        'Nenhuma resposta para este formulário foi encontrada para você.',
+      );
+    }
+
+    // 2. Calcula a pontuação média de outros idosos para este formulário
+    const aggregateResult = await this.prisma.formAnsware.aggregate({
+      _avg: {
+        totalScore: true,
+      },
+      _count: {
+        _all: true,
+      },
+      where: {
+        formId,
+        elderlyId: {
+          not: elderlyId, // Exclui o idoso atual da média
+        },
+        evaluationAnsware: {
+          status: 'COMPLETED',
+        },
+      },
+    });
+
+    return {
+      myScore: userAnsware.totalScore,
+      averageScore: aggregateResult._avg.totalScore ?? 0,
+      totalParticipants: aggregateResult._count._all,
+    };
   }
 
   async remove(id: string) {
