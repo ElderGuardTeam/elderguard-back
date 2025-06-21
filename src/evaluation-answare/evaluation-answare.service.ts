@@ -271,18 +271,34 @@ export class EvaluationAnswareService {
       seccionScores.push({ seccionId: seccion.id, score });
     }
 
-    const scoresOutsideSeccion = allQuestionScores.filter((qs) =>
-      form.questionsRel.some((rel) => rel.questionId === qs.questionId),
-    );
-    const formContext: EvaluationContext = {
-      questionScores: scoresOutsideSeccion,
-      seccionScores,
-      elderly,
-    };
-    const formScore = this.ruleEngine.calculateScore(
-      form.rule ? [form.rule] : [],
-      formContext,
-    );
+    let formScore: number;
+
+    // Se o formulário tiver uma regra específica, usa o RuleEngine.
+    if (form.rule) {
+      const scoresOutsideSeccion = allQuestionScores.filter((qs) =>
+        form.questionsRel.some((rel) => rel.questionId === qs.questionId),
+      );
+      const formContext: EvaluationContext = {
+        questionScores: scoresOutsideSeccion,
+        seccionScores,
+        elderly,
+      };
+      formScore = this.ruleEngine.calculateScore([form.rule], formContext);
+    } else {
+      // Comportamento padrão se não houver regra no formulário:
+      // Soma as pontuações das seções com as pontuações das questões de nível superior.
+      const totalSeccionScore = seccionScores.reduce(
+        (acc, curr) => acc + curr.score,
+        0,
+      );
+      const totalTopLevelQuestionScore = allQuestionScores
+        .filter((qs) =>
+          form.questionsRel.some((rel) => rel.questionId === qs.questionId),
+        )
+        .reduce((acc, curr) => acc + curr.score, 0);
+
+      formScore = totalSeccionScore + totalTopLevelQuestionScore;
+    }
 
     // 3. Persiste os dados usando o método centralizado
     const questionScoresMap = new Map(
