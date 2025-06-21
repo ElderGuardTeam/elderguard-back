@@ -13,7 +13,7 @@ export class CreateOptionAnswerNestedDto {
   optionId: string;
 
   @IsNumber()
-  @IsNotEmpty()
+  @IsOptional() // Make score optional as it will be fetched from DB
   score: number;
 
   @IsString()

@@ -292,24 +292,55 @@ export class EvaluationAnswareService {
       if (!answareDto) continue;
 
       let calculatedScore = 0;
-      // Priorize o 'score' fornecido no DTO da questão
-      if (answareDto.score !== undefined && answareDto.score !== null) {
-        calculatedScore = answareDto.score;
-      } else {
-        // Caso contrário, calcule a pontuação usando o RuleEngine
-        const selectedOptions = question.options
-          .filter((opt) =>
-            answareDto.optionAnswers?.some((ans) => ans.optionId === opt.id),
-          )
-          .map((opt) => ({
-            ...opt,
-            description: opt.description ?? '',
-          }));
-        const questionContext: EvaluationContext = { selectedOptions, elderly };
-        calculatedScore = this.ruleEngine.calculateScore(
-          question.rule ? [question.rule] : [],
-          questionContext,
-        );
+
+      switch (question.type) {
+        case 'SCORE':
+          // For SCORE type questions, use the score directly from the DTO if provided, otherwise 0.
+          calculatedScore = answareDto.score ?? 0;
+          break;
+        case 'SELECT':
+        case 'MULTISELECT': {
+          // For SELECT/MULTISELECT, calculate score from selected options
+          const selectedOptions = question.options
+            .filter((opt) => {
+              if (question.type === 'SELECT' && answareDto.selectedOptionId) {
+                return opt.id === answareDto.selectedOptionId;
+              }
+              if (question.type === 'MULTISELECT' && answareDto.optionAnswers) {
+                return answareDto.optionAnswers.some(
+                  (ans) => ans.optionId === opt.id,
+                );
+              }
+              return false;
+            })
+            .map((opt) => ({
+              ...opt,
+              description: opt.description ?? '',
+            }));
+
+          // If there's a rule, use it. Otherwise, sum the scores of selected options.
+          if (question.rule) {
+            const questionContext: EvaluationContext = {
+              selectedOptions,
+              elderly,
+            };
+            calculatedScore = this.ruleEngine.calculateScore(
+              [question.rule],
+              questionContext,
+            );
+          } else {
+            calculatedScore = selectedOptions.reduce(
+              (sum, opt) => sum + opt.score,
+              0,
+            );
+          }
+          break;
+        }
+        default:
+          // For other question types (TEXT, NUMBER, IMAGE, BOOLEAN), score is typically 0
+          // unless explicitly provided in the DTO.
+          calculatedScore = answareDto.score ?? 0;
+          break;
       }
       allQuestionScores.push({
         questionId: question.id,
@@ -437,7 +468,7 @@ export class EvaluationAnswareService {
       const score =
         scores.questionScores.get(questionAnswareDto.questionId) ?? 0;
 
-      await tx.questionAnswer.create({
+      const createdQuestionAnswer = await tx.questionAnswer.create({
         data: {
           questionId: questionAnswareDto.questionId,
           formAnswareId: formAnsware.id,
@@ -449,6 +480,34 @@ export class EvaluationAnswareService {
           selectedOptionId: questionAnswareDto.selectedOptionId,
         },
       });
+
+      // Handle optionAnswers for MULTISELECT questions
+      if (
+        questionAnswareDto.optionAnswers &&
+        questionAnswareDto.optionAnswers.length > 0
+      ) {
+        const optionIds = questionAnswareDto.optionAnswers.map(
+          (opt) => opt.optionId,
+        );
+        const optionsInDb = await tx.option.findMany({
+          where: { id: { in: optionIds } },
+          select: { id: true, score: true },
+        });
+        const optionScoresMap = new Map(
+          optionsInDb.map((opt) => [opt.id, opt.score]),
+        );
+
+        await tx.optionAnswer.createMany({
+          data: questionAnswareDto.optionAnswers.map((opt) => ({
+            optionId: opt.optionId,
+            questionAnswerId: createdQuestionAnswer.id,
+            score: optionScoresMap.get(opt.optionId) ?? 0, // Get score from DB, default to 0 if not found
+            answerText: opt.answerText,
+            answerNumber: opt.answerNumber,
+            answerBoolean: opt.answerBoolean,
+          })),
+        });
+      }
     }
   }
 
