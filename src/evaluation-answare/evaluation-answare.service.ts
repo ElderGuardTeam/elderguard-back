@@ -112,6 +112,11 @@ export class EvaluationAnswareService {
         );
       }
 
+      await tx.evaluationAnsware.update({
+        where: { id },
+        data: { status: 'IN_PROGRESS' },
+      });
+
       return this._findEvaluationAnswareById(tx, id);
     });
   }
@@ -162,6 +167,53 @@ export class EvaluationAnswareService {
       await tx.evaluationAnsware.update({
         where: { id },
         data: { status: 'PAUSED' },
+      });
+
+      return this._findEvaluationAnswareById(tx, id);
+    });
+  }
+
+  /**
+   * Finaliza uma avaliação, processando o último formulário e atualizando o status
+   * da avaliação para 'COMPLETED'.
+   */
+  async complete(id: string, completeDto: PauseEvaluationAnswareDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const evaluationAnsware = await tx.evaluationAnsware.findUnique({
+        where: { id },
+        include: { elderly: true },
+      });
+
+      if (!evaluationAnsware) {
+        throw new NotFoundException(
+          `Resposta da Avaliação com ID ${id} não encontrada.`,
+        );
+      }
+
+      const professional = await tx.professional.findUnique({
+        where: { id: completeDto.professionalId },
+      });
+      if (!professional) {
+        throw new NotFoundException(
+          `Profissional com ID ${completeDto.professionalId} não encontrado.`,
+        );
+      }
+
+      const { elderly } = evaluationAnsware;
+      const formAnswareDto = completeDto.formAnswares[0]; // Assume que o último formulário está no array
+
+      // Processa e pontua o último formulário
+      await this.processAndScoreForm(
+        tx,
+        id,
+        formAnswareDto,
+        elderly,
+        completeDto.professionalId,
+      );
+
+      await tx.evaluationAnsware.update({
+        where: { id },
+        data: { status: 'COMPLETED' },
       });
 
       return this._findEvaluationAnswareById(tx, id);

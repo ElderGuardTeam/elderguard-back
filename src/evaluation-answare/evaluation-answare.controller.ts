@@ -48,6 +48,17 @@ export class EvaluationAnswareController {
     return this.evaluationAnswareService.pause(id, pauseDto);
   }
 
+  @Patch(':id/complete')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('ADMIN', 'TECH_PROFESSIONAL')
+  complete(
+    @Param('id') id: string,
+    @Body() completeDto: PauseEvaluationAnswareDto,
+  ) {
+    // Reutiliza PauseEvaluationAnswareDto, pois a estrutura é a mesma (formAnswares e professionalId)
+    return this.evaluationAnswareService.complete(id, completeDto);
+  }
+
   @Get()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('ADMIN', 'TECH_PROFESSIONAL')
