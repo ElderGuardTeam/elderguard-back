@@ -44,9 +44,14 @@ export class AuthService {
     const access_token = this.jwtService.sign(payload);
 
     if (user.userType === 'USER') {
+      const elderly = await this.prisma.elderly.findUnique({
+        where: { userId: user.id },
+        select: { id: true },
+      });
       return {
         access_token,
         cpf: user.login,
+        elderlyId: elderly?.id,
       };
     }
 
