@@ -1,12 +1,12 @@
 import { Type } from 'class-transformer';
-import { ValidateNested, IsDefined, IsNotEmpty, IsUUID } from 'class-validator';
+import { ValidateNested, IsNotEmpty, IsUUID, IsArray } from 'class-validator';
 import { CreateFormAnswareNestedDto } from './create-form-answare-nested.dto';
 
 export class AddFormAnswareDto {
-  @IsDefined()
-  @ValidateNested()
+  @IsArray()
+  @ValidateNested({ each: true })
   @Type(() => CreateFormAnswareNestedDto)
-  formAnswares: CreateFormAnswareNestedDto;
+  formAnswares: CreateFormAnswareNestedDto[];
 
   @IsUUID()
   @IsNotEmpty()

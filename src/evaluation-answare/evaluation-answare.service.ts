@@ -101,13 +101,16 @@ export class EvaluationAnswareService {
 
       const { elderly } = evaluationAnsware;
 
-      await this.processAndScoreForm(
-        tx,
-        evaluationAnsware.id,
-        addDto.formAnswares, // CORREÇÃO: Usando o singular para consistência
-        elderly, // Passa o objeto 'elderly'
-        addDto.professionalId, // Passa o 'professionalId' da avaliação existente
-      );
+      // Iterate over the formAnswares array and process each one
+      for (const formAnsware of addDto.formAnswares) {
+        await this.processAndScoreForm(
+          tx,
+          evaluationAnsware.id,
+          formAnsware, // Pass each formAnsware individually
+          elderly,
+          addDto.professionalId,
+        );
+      }
 
       return this._findEvaluationAnswareById(tx, id);
     });
