@@ -9,5 +9,5 @@ export class PauseEvaluationAnswareDto {
 
   @ValidateNested()
   @Type(() => CreateFormAnswareNestedDto)
-  formAnsware: CreateFormAnswareNestedDto;
+  formAnswares: CreateFormAnswareNestedDto;
 }

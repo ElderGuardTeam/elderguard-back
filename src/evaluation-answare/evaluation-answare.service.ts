@@ -143,7 +143,13 @@ export class EvaluationAnswareService {
       }
 
       const { elderly } = evaluationAnsware;
-      const { formAnsware: formAnswareDto } = pauseDto;
+      const { formAnswares: formAnswareDto } = pauseDto;
+
+      if (!formAnswareDto) {
+        throw new BadRequestException(
+          'A pausa de uma avaliação deve conter uma resposta de formulário para salvar o progresso.',
+        );
+      }
 
       await this.saveFormProgress(
         tx,
