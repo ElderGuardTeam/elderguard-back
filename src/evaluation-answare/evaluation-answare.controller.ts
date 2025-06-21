@@ -14,6 +14,7 @@ import { AddFormAnswareDto } from './dto/add-form-answare.dto'; // Importar o no
 import { Roles } from 'src/auth/roles.decorator';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/auth/roles.guard';
+import { PauseEvaluationAnswareDto } from './dto/pause-evaluation-answare.dto';
 
 @Controller('evaluation-answare')
 export class EvaluationAnswareController {
@@ -37,6 +38,13 @@ export class EvaluationAnswareController {
   ) {
     // O método de patch agora tem um nome mais claro e usa o DTO específico
     return this.evaluationAnswareService.addFormAnsware(id, addFormAnswareDto);
+  }
+
+  @Patch(':id/pause')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('ADMIN', 'TECH_PROFESSIONAL')
+  pause(@Param('id') id: string, @Body() pauseDto: PauseEvaluationAnswareDto) {
+    return this.evaluationAnswareService.pause(id, pauseDto);
   }
 
   @Get()

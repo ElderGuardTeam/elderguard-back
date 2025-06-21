@@ -12,6 +12,7 @@ import {
 } from '../common/rule-engine/rule-engine.service';
 import { AddFormAnswareDto } from './dto/add-form-answare.dto';
 import { Prisma, Elderly } from '@prisma/client';
+import { PauseEvaluationAnswareDto } from './dto/pause-evaluation-answare.dto';
 
 @Injectable()
 export class EvaluationAnswareService {
@@ -103,10 +104,56 @@ export class EvaluationAnswareService {
       await this.processAndScoreForm(
         tx,
         evaluationAnsware.id,
-        addDto.formAnswares,
+        addDto.formAnswares, // CORREÇÃO: Usando o singular para consistência
         elderly, // Passa o objeto 'elderly'
         addDto.professionalId, // Passa o 'professionalId' da avaliação existente
       );
+
+      return this._findEvaluationAnswareById(tx, id);
+    });
+  }
+
+  /**
+   * Pausa uma avaliação, salvando o progresso de um formulário sem calcular a pontuação
+   * e atualizando o status da avaliação para 'PAUSED'.
+   */
+  async pause(id: string, pauseDto: PauseEvaluationAnswareDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const evaluationAnsware = await tx.evaluationAnsware.findUnique({
+        where: { id },
+        include: { elderly: true },
+      });
+
+      if (!evaluationAnsware) {
+        throw new NotFoundException(
+          `Resposta da Avaliação com ID ${id} não encontrada.`,
+        );
+      }
+
+      const professional = await tx.professional.findUnique({
+        where: { id: pauseDto.professionalId },
+      });
+      if (!professional) {
+        throw new NotFoundException(
+          `Profissional com ID ${pauseDto.professionalId} não encontrado.`,
+        );
+      }
+
+      const { elderly } = evaluationAnsware;
+      const { formAnsware: formAnswareDto } = pauseDto;
+
+      await this.saveFormProgress(
+        tx,
+        id,
+        formAnswareDto,
+        elderly,
+        pauseDto.professionalId,
+      );
+
+      await tx.evaluationAnsware.update({
+        where: { id },
+        data: { status: 'PAUSED' },
+      });
 
       return this._findEvaluationAnswareById(tx, id);
     });
@@ -123,7 +170,7 @@ export class EvaluationAnswareService {
     elderly: Elderly,
     professionalId: string,
   ) {
-    // 1. BUSCA CORRIGIDA: Navegando através das tabelas de relacionamento
+    // 1. Busca o formulário e suas regras para cálculo de pontuação
     const form = await tx.form.findUnique({
       where: { id: formAnswareDto.formId },
       include: {
@@ -169,14 +216,12 @@ export class EvaluationAnswareService {
       );
     }
 
-    // 2. LÓGICA ATUALIZADA: Extrai as questões da nova estrutura de dados
+    // 2. Extrai as questões da estrutura de dados do formulário
     const topLevelQuestions = form.questionsRel.map((rel) => rel.question);
     const sectionQuestions = form.seccions.flatMap((sec) =>
       sec.questionsRel.map((rel) => rel.question),
     );
     const allQuestionsInForm = [...topLevelQuestions, ...sectionQuestions];
-
-    // O resto da lógica de cálculo permanece a mesma, pois agora opera sobre 'allQuestionsInForm'
 
     const allQuestionScores: { questionId: string; score: number }[] = [];
     for (const question of allQuestionsInForm) {
@@ -230,43 +275,96 @@ export class EvaluationAnswareService {
       formContext,
     );
 
-    // 3. Persistência dos dados (sem alterações necessárias aqui)
-    const formAnsware = await tx.formAnsware.create({
-      data: {
-        formId: form.id,
+    // 3. Persiste os dados usando o método centralizado
+    const questionScoresMap = new Map(
+      allQuestionScores.map((qs) => [qs.questionId, qs.score]),
+    );
+
+    await this._upsertFormAnsware(
+      tx,
+      evaluationAnswareId,
+      formAnswareDto,
+      elderly,
+      professionalId,
+      { formScore, questionScores: questionScoresMap },
+    );
+  }
+
+  /**
+   * Salva o progresso de um formulário sem calcular a pontuação.
+   * @private
+   */
+  private async saveFormProgress(
+    tx: Prisma.TransactionClient,
+    evaluationAnswareId: string,
+    formAnswareDto: CreateFormAnswareNestedDto,
+    elderly: Elderly,
+    professionalId: string,
+  ) {
+    // Chama o método de persistência com pontuações zeradas
+    await this._upsertFormAnsware(
+      tx,
+      evaluationAnswareId,
+      formAnswareDto,
+      elderly,
+      professionalId,
+      { formScore: 0, questionScores: new Map() },
+    );
+  }
+
+  /**
+   * Centraliza a lógica de criar ou atualizar uma resposta de formulário e suas questões.
+   * @private
+   */
+  private async _upsertFormAnsware(
+    tx: Prisma.TransactionClient,
+    evaluationAnswareId: string,
+    formAnswareDto: CreateFormAnswareNestedDto,
+    elderly: Elderly,
+    professionalId: string,
+    scores: { formScore: number; questionScores: Map<string, number> },
+  ) {
+    const formAnsware = await tx.formAnsware.upsert({
+      where: {
+        evaluationAnswareId_formId: {
+          evaluationAnswareId,
+          formId: formAnswareDto.formId,
+        },
+      },
+      update: {
+        totalScore: scores.formScore,
+        questionsAnswares: { deleteMany: {} }, // Limpa respostas antigas para atualizar
+      },
+      create: {
+        formId: formAnswareDto.formId,
         evaluationAnswareId,
-        totalScore: formScore,
+        totalScore: scores.formScore,
         techProfessionalId: professionalId,
         elderlyId: elderly.id,
       },
     });
 
+    if (!formAnswareDto.questionsAnswares) return;
+
     for (const questionAnswareDto of formAnswareDto.questionsAnswares) {
       const score =
-        allQuestionScores.find(
-          (qs) => qs.questionId === questionAnswareDto.questionId,
-        )?.score ?? 0;
-      const questionAnsware = await tx.questionAnswer.create({
+        scores.questionScores.get(questionAnswareDto.questionId) ?? 0;
+
+      await tx.questionAnswer.create({
         data: {
           questionId: questionAnswareDto.questionId,
           formAnswareId: formAnsware.id,
           score,
+          answerText: questionAnswareDto.answerText,
+          answerNumber: questionAnswareDto.answerNumber,
+          answerBoolean: questionAnswareDto.answerBoolean,
+          answerImage: questionAnswareDto.answerImage,
+          selectedOptionId: questionAnswareDto.selectedOptionId,
         },
       });
-      if (questionAnswareDto.optionAnswers) {
-        await tx.optionAnswer.createMany({
-          data: questionAnswareDto.optionAnswers.map((opt) => ({
-            optionId: opt.optionId,
-            questionAnswerId: questionAnsware.id,
-            // Add 'score' if it's required, set to a default value if needed
-            score: opt.score ?? 0,
-          })),
-        });
-      }
     }
   }
 
-  // findAll, findOne, e remove permanecem os mesmos
   async findAll() {
     return this.prisma.evaluationAnsware.findMany({
       include: {
