@@ -291,20 +291,30 @@ export class EvaluationAnswareService {
       );
       if (!answareDto) continue;
 
-      const selectedOptions = question.options
-        .filter((opt) =>
-          answareDto.optionAnswers?.some((ans) => ans.optionId === opt.id),
-        )
-        .map((opt) => ({
-          ...opt,
-          description: opt.description ?? '',
-        }));
-      const questionContext: EvaluationContext = { selectedOptions, elderly };
-      const score = this.ruleEngine.calculateScore(
-        question.rule ? [question.rule] : [],
-        questionContext,
-      ); // Envia a regra como um array
-      allQuestionScores.push({ questionId: question.id, score });
+      let calculatedScore = 0;
+      // Priorize o 'score' fornecido no DTO da questão
+      if (answareDto.score !== undefined && answareDto.score !== null) {
+        calculatedScore = answareDto.score;
+      } else {
+        // Caso contrário, calcule a pontuação usando o RuleEngine
+        const selectedOptions = question.options
+          .filter((opt) =>
+            answareDto.optionAnswers?.some((ans) => ans.optionId === opt.id),
+          )
+          .map((opt) => ({
+            ...opt,
+            description: opt.description ?? '',
+          }));
+        const questionContext: EvaluationContext = { selectedOptions, elderly };
+        calculatedScore = this.ruleEngine.calculateScore(
+          question.rule ? [question.rule] : [],
+          questionContext,
+        );
+      }
+      allQuestionScores.push({
+        questionId: question.id,
+        score: calculatedScore,
+      });
     }
 
     const seccionScores: { seccionId: string; score: number }[] = [];
