@@ -336,6 +336,25 @@ export class EvaluationAnswareService {
           }
           break;
         }
+        case 'BOOLEAN': {
+          // Handle BOOLEAN questions specifically
+          if (question.rule) {
+            // If a rule is defined for the boolean question, use the rule engine
+            const questionContext: EvaluationContext = {
+              answerBoolean: answareDto.answerBoolean, // Pass the boolean answer to the context // This line is already in the compiled JS
+              elderly, // Keep elderly in context if rules need it
+            };
+            calculatedScore = this.ruleEngine.calculateScore(
+              [question.rule],
+              questionContext,
+            );
+          } else {
+            // If no rule, fallback to the score provided in the DTO, or 0
+            // This might still be 0 if the DTO doesn't provide a score for boolean questions
+            calculatedScore = answareDto.score ?? 0;
+          }
+          break;
+        }
         default:
           // For other question types (TEXT, NUMBER, IMAGE, BOOLEAN), score is typically 0
           // unless explicitly provided in the DTO.
