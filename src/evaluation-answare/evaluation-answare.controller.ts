@@ -22,6 +22,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { PauseEvaluationAnswareDto } from './dto/pause-evaluation-answare.dto';
 import { UserType } from '@prisma/client';
+import type { FormScoreHistory } from './evaluation-answare.service';
 
 @Controller('evaluation-answare')
 export class EvaluationAnswareController {
@@ -102,17 +103,39 @@ export class EvaluationAnswareController {
   @Get('compare-form/:formId')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserType.USER)
-  compareFormScores(@Param('formId') formId: string, @Request() req) {
+  compareFormScoreWithOthersAverage(
+    @Param('formId') formId: string,
+    @Request() req,
+  ) {
     const user = req.user;
     if (!user.elderly?.id) {
       throw new ForbiddenException(
         'Acesso negado. Somente idosos podem comparar resultados.',
       );
     }
-    return this.evaluationAnswareService.compareFormScores(
+    return this.evaluationAnswareService.compareFormScoreWithOthersAverage(
       formId,
       user.elderly.id,
     );
+  }
+
+  @Get('history/:elderlyId') // Novo endpoint para histórico de pontuações
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  getElderlyFormsScoresHistory(
+    @Param('elderlyId') elderlyId: string,
+    @Request() req,
+  ): Promise<FormScoreHistory[]> {
+    {
+      const user = req.user;
+      if (user.userType === UserType.USER && user.elderly?.id !== elderlyId) {
+        throw new ForbiddenException(
+          'Acesso negado. Você só pode ver suas próprias avaliações.',
+        );
+      }
+      return this.evaluationAnswareService.getElderlyFormsScoresHistory(
+        elderlyId,
+      );
+    }
   }
 
   @Get(':id')

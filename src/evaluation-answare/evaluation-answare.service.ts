@@ -14,6 +14,17 @@ import { AddFormAnswareDto } from './dto/add-form-answare.dto';
 import { Prisma, Elderly } from '@prisma/client';
 import { PauseEvaluationAnswareDto } from './dto/pause-evaluation-answare.dto';
 
+export interface FormScoreHistory {
+  formId: string;
+  formTitle: string;
+  scores: {
+    evaluationAnswareId: string;
+    date: Date;
+    totalScore: number;
+    status: string;
+  }[];
+}
+
 @Injectable()
 export class EvaluationAnswareService {
   constructor(
@@ -627,7 +638,7 @@ export class EvaluationAnswareService {
     });
   }
 
-  async compareFormScores(formId: string, elderlyId: string) {
+  async compareFormScoreWithOthersAverage(formId: string, elderlyId: string) {
     // 1. Pega a pontuação mais recente do usuário para este formulário
     const userAnsware = await this.prisma.formAnsware.findFirst({
       where: {
@@ -675,6 +686,57 @@ export class EvaluationAnswareService {
       averageScore: aggregateResult._avg.totalScore ?? 0,
       totalParticipants: aggregateResult._count._all,
     };
+  }
+
+  /**
+   * Retorna o histórico de pontuações de formulários para um idoso,
+   * agrupado por tipo de formulário e ordenado por data.
+   */
+  async getElderlyFormsScoresHistory(
+    elderlyId: string,
+  ): Promise<FormScoreHistory[]> {
+    const evaluations = await this.prisma.evaluationAnsware.findMany({
+      where: {
+        elderlyId,
+        status: 'COMPLETED', // Considera apenas avaliações concluídas para o histórico
+      },
+      include: {
+        formAnswares: {
+          orderBy: { created: 'asc' }, // Ordena as respostas de formulário pela data de criação
+          include: {
+            form: { select: { id: true, title: true } }, // Seleciona detalhes do formulário
+          },
+        },
+      },
+      orderBy: { created: 'asc' }, // Ordena as avaliações pela data de criação
+    });
+
+    const historyMap = new Map<string, FormScoreHistory>();
+
+    for (const evaluation of evaluations) {
+      for (const formAnsware of evaluation.formAnswares) {
+        const formId = formAnsware.formId;
+        const formTitle = formAnsware.form.title;
+
+        if (!historyMap.has(formId)) {
+          historyMap.set(formId, { formId, formTitle, scores: [] });
+        }
+
+        historyMap.get(formId)?.scores.push({
+          evaluationAnswareId: evaluation.id,
+          date: formAnsware.created,
+          totalScore: formAnsware.totalScore ?? 0,
+          status: evaluation.status,
+        });
+      }
+    }
+
+    // Converte os valores do mapa para um array e ordena por título do formulário para saída consistente
+    const result = Array.from(historyMap.values()).sort((a, b) =>
+      a.formTitle.localeCompare(b.formTitle),
+    );
+
+    return result;
   }
 
   async remove(id: string) {
