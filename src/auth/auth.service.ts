@@ -29,33 +29,44 @@ export class AuthService {
   }
 
   async login(user: User) {
-    const payload = {
-      sub: user.id,
-      login: user.login,
-      userType: user.userType,
-      name: user.name,
-    };
-    if (user.mustChangePassword) {
-      return {
-        message: 'ALTER_PASSWORD_REQUIRED',
-        userId: user.id, // Retorna o ID para alterar a senha depois
-      };
-    }
-    const access_token = this.jwtService.sign(payload);
-
     if (user.userType === 'USER') {
       const elderly = await this.prisma.elderly.findUnique({
         where: { userId: user.id },
         select: { id: true },
       });
+      const payload = {
+        sub: user.id,
+        login: user.login,
+        userType: user.userType,
+        name: user.name,
+        elderlyId: elderly?.id,
+      };
+      if (user.mustChangePassword) {
+        return {
+          message: 'ALTER_PASSWORD_REQUIRED',
+          userId: user.id, // Retorna o ID para alterar a senha depois
+        };
+      }
+      const access_token = this.jwtService.sign(payload);
       return {
         access_token,
         cpf: user.login,
         elderlyId: elderly?.id,
       };
-    }
-
-    if (user.userType === 'TECH_PROFESSIONAL' || user.userType === 'ADMIN') {
+    } else {
+      const payload = {
+        sub: user.id,
+        login: user.login,
+        userType: user.userType,
+        name: user.name,
+      };
+      if (user.mustChangePassword) {
+        return {
+          message: 'ALTER_PASSWORD_REQUIRED',
+          userId: user.id, // Retorna o ID para alterar a senha depois
+        };
+      }
+      const access_token = this.jwtService.sign(payload);
       const professional = await this.prisma.professional.findUnique({
         where: { userId: user.id },
         select: { id: true },
@@ -65,8 +76,6 @@ export class AuthService {
         professionalId: professional?.id,
       };
     }
-
-    return { access_token };
   }
 
   async forgotPassword(login: string) {

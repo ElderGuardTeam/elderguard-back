@@ -108,14 +108,14 @@ export class EvaluationAnswareController {
     @Request() req,
   ) {
     const user = req.user;
-    if (!user.elderly?.id) {
+    if (!user.elderlyId) {
       throw new ForbiddenException(
         'Acesso negado. Somente idosos podem comparar resultados.',
       );
     }
     return this.evaluationAnswareService.compareFormScoreWithOthersAverage(
       formId,
-      user.elderly.id,
+      user.elderlyId,
     );
   }
 
@@ -127,7 +127,7 @@ export class EvaluationAnswareController {
   ): Promise<FormScoreHistory[]> {
     {
       const user = req.user;
-      if (user.userType === UserType.USER && user.elderly?.id !== elderlyId) {
+      if (user.userType === UserType.USER && user.elderlyId !== elderlyId) {
         throw new ForbiddenException(
           'Acesso negado. Você só pode ver suas próprias avaliações.',
         );
@@ -147,7 +147,7 @@ export class EvaluationAnswareController {
 
     if (
       user.userType === UserType.USER &&
-      evaluationAnsware.elderlyId !== user.elderly?.id
+      evaluationAnsware.elderlyId !== user.elderlyId
     ) {
       throw new ForbiddenException(
         'Acesso negado. Você só pode ver suas próprias avaliações.',
