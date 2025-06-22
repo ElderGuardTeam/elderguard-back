@@ -27,6 +27,7 @@ import { UserType } from '@prisma/client';
 export class EvaluationAnswareController {
   constructor(
     private readonly evaluationAnswareService: EvaluationAnswareService,
+    // private readonly userService: UserService, // UserService is not used in this controller
   ) {}
 
   @Post()
@@ -72,17 +73,17 @@ export class EvaluationAnswareController {
     return this.evaluationAnswareService.findAll(search);
   }
 
-  @Get('my-evaluations')
+  @Get('my-evaluations/:elderlyId')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserType.USER)
   findMyEvaluations(@Request() req) {
     const user = req.user;
-    if (!user.elderlyId) {
+    if (!user.elderly?.id) {
       throw new ForbiddenException(
-        'Acesso negado. Somente idosos podem ver suas próprias avaliações.',
+        'Acesso negado. Somente idosos podem ver suas próprias avaliações.', // This message is already in the compiled JS
       );
     }
-    return this.evaluationAnswareService.findAllByElderlyId(user.elderlyId);
+    return this.evaluationAnswareService.findAllByElderlyId(user.elderly.id);
   }
 
   @Get('compare-form/:formId')
