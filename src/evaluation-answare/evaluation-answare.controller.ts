@@ -77,12 +77,12 @@ export class EvaluationAnswareController {
   @Roles(UserType.USER)
   findMyEvaluations(@Request() req) {
     const user = req.user;
-    if (!user.elderly?.id) {
+    if (!user.elderlyId) {
       throw new ForbiddenException(
         'Acesso negado. Somente idosos podem ver suas próprias avaliações.',
       );
     }
-    return this.evaluationAnswareService.findAllByElderlyId(user.elderly.id);
+    return this.evaluationAnswareService.findAllByElderlyId(user.elderlyId);
   }
 
   @Get('compare-form/:formId')
