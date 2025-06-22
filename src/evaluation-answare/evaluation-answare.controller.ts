@@ -76,15 +76,27 @@ export class EvaluationAnswareController {
   @Get('my-evaluations/:elderlyId')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserType.USER)
-  findMyEvaluations(@Request() req) {
+  findMyEvaluationsByElderlyId(
+    @Param('elderlyId') elderlyId: string,
+    @Request() req,
+  ) {
     const user = req.user;
-    if (!user.elderly?.id) {
+    if (!elderlyId) {
       throw new ForbiddenException(
-        'Acesso negado. Somente idosos podem ver suas próprias avaliações.', // This message is already in the compiled JS
+        'Acesso negado. Você só pode ver suas próprias avaliações.',
       );
     }
-    return this.evaluationAnswareService.findAllByElderlyId(user.elderly.id);
+    return this.evaluationAnswareService.findAllByElderlyId(elderlyId);
   }
+  // findMyEvaluations(@Request() req) {
+  //   const user = req.user;
+  //   if (!user.elderly?.id) {
+  //     throw new ForbiddenException(
+  //       'Acesso negado. Somente idosos podem ver suas próprias avaliações.', // This message is already in the compiled JS
+  //     );
+  //   }
+  //   return this.evaluationAnswareService.findAllByElderlyId(user.elderly.id);
+  // }
 
   @Get('compare-form/:formId')
   @UseGuards(AuthGuard('jwt'), RolesGuard)

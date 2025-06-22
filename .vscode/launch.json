@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    
+
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Node",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/index.js" // <-- ajuste aqui para seu arquivo de entrada
+    }
+  ]
+}
