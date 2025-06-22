@@ -34,6 +34,11 @@ export class AuthService {
         where: { userId: user.id },
         select: { id: true },
       });
+      if (!elderly) {
+        throw new BadRequestException(
+          'Elderly record not found for this user.',
+        );
+      }
       const payload = {
         sub: user.id,
         login: user.login,
