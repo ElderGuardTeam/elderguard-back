@@ -17,7 +17,7 @@ import { PauseEvaluationAnswareDto } from './dto/pause-evaluation-answare.dto';
 export interface FormScoreHistory {
   formId: string;
   formTitle: string;
-  formType?: string; // Opcional, se necessário
+  formType: string; // Opcional, se necessário
   scores: {
     evaluationAnswareId: string;
     date: Date;
@@ -717,10 +717,11 @@ export class EvaluationAnswareService {
     for (const evaluation of evaluations) {
       for (const formAnsware of evaluation.formAnswares) {
         const formId = formAnsware.formId;
-        const formTitle = formAnsware.form.title;
+        const formTitle = formAnsware.form.title ?? '';
+        const formType = formAnsware.form.type ?? ''; // Obtém o tipo do formulário
 
         if (!historyMap.has(formId)) {
-          historyMap.set(formId, { formId, formTitle, scores: [] });
+          historyMap.set(formId, { formId, formTitle, formType, scores: [] });
         }
 
         historyMap.get(formId)?.scores.push({
