@@ -119,6 +119,28 @@ export class EvaluationAnswareController {
     );
   }
 
+  @Get('history-by-form-type/:elderlyId/:formId')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserType.USER, UserType.ADMIN, UserType.TECH_PROFESSIONAL)
+  async getElderlyFormScoresByType(
+    @Param('elderlyId') elderlyId: string,
+    @Param('formId') formId: string,
+    @Request() req,
+  ): Promise<FormScoreHistory[]> {
+    const user = req.user;
+
+    // Security check: Ensure a regular user can only access their own data
+    if (user.userType === UserType.USER && user.elderlyId !== elderlyId) {
+      throw new ForbiddenException(
+        'Acesso negado. Você só pode ver suas próprias avaliações.',
+      );
+    }
+    return this.evaluationAnswareService.getElderlyFormScoresByType(
+      elderlyId,
+      formId,
+    );
+  }
+
   @Get('history/:elderlyId') // Novo endpoint para histórico de pontuações
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   getElderlyFormsScoresHistory(

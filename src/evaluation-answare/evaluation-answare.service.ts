@@ -17,6 +17,7 @@ import { PauseEvaluationAnswareDto } from './dto/pause-evaluation-answare.dto';
 export interface FormScoreHistory {
   formId: string;
   formTitle: string;
+  formType?: string; // Opcional, se necessário
   scores: {
     evaluationAnswareId: string;
     date: Date;
@@ -704,7 +705,7 @@ export class EvaluationAnswareService {
         formAnswares: {
           orderBy: { created: 'asc' }, // Ordena as respostas de formulário pela data de criação
           include: {
-            form: { select: { id: true, title: true } }, // Seleciona detalhes do formulário
+            form: { select: { id: true, title: true, type: true } }, // Seleciona detalhes do formulário
           },
         },
       },
@@ -737,6 +738,36 @@ export class EvaluationAnswareService {
     );
 
     return result;
+  }
+
+  /**
+   * Retorna as pontuações totais das respostas de formulário para um idoso,
+   * filtradas pelo tipo de formulário (título) do formulário enviado.
+   */
+  async getElderlyFormScoresByType(
+    elderlyId: string,
+    formId: string,
+  ): Promise<FormScoreHistory[]> {
+    // 1. Obter o título do formulário (que representa o "tipo" do formulário)
+    const targetForm = await this.prisma.form.findUnique({
+      where: { id: formId },
+      select: { type: true },
+    });
+
+    if (!targetForm) {
+      throw new NotFoundException(
+        `Formulário com ID ${formId} não encontrado.`,
+      );
+    }
+
+    const targetFormType = targetForm.type;
+
+    // 2. Obter o histórico completo de pontuações do idoso e filtrar pelo título do formulário
+    const allFormsHistory = await this.getElderlyFormsScoresHistory(elderlyId);
+
+    return allFormsHistory.filter(
+      (history) => history.formType === targetFormType,
+    );
   }
 
   async remove(id: string) {
