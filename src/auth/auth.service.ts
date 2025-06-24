@@ -44,7 +44,7 @@ export class AuthService {
         login: user.login,
         userType: user.userType,
         name: user.name,
-        elderlyId: elderly?.id,
+        elderlyId: elderly.id,
       };
       if (user.mustChangePassword) {
         return {
@@ -56,7 +56,7 @@ export class AuthService {
       return {
         access_token,
         cpf: user.login,
-        elderlyId: elderly?.id,
+        elderlyId: elderly.id,
       };
     } else {
       const payload = {
