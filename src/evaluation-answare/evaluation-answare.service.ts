@@ -14,6 +14,7 @@ import { AddFormAnswareDto } from './dto/add-form-answare.dto';
 import { Prisma, Elderly } from '@prisma/client';
 import { PauseEvaluationAnswareDto } from './dto/pause-evaluation-answare.dto';
 
+import { ImageStorageService } from 'src/image-storage/image-storage.service';
 export interface FormScoreHistory {
   formId: string;
   formTitle: string;
@@ -31,6 +32,7 @@ export class EvaluationAnswareService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ruleEngine: RuleEngineService,
+    private readonly imageStorageService: ImageStorageService,
   ) {}
 
   /**
@@ -499,6 +501,29 @@ export class EvaluationAnswareService {
       const score =
         scores.questionScores.get(questionAnswareDto.questionId) ?? 0;
 
+      // Handle image upload if answerImage is provided and is a base64 string
+      let savedImagePath: string | undefined = questionAnswareDto.answerImage;
+      if (
+        questionAnswareDto.answerImage &&
+        questionAnswareDto.answerImage.startsWith('data:image/')
+      ) {
+        try {
+          const result = await this.imageStorageService.saveBase64Image(
+            questionAnswareDto.answerImage,
+            `question-${questionAnswareDto.questionId}`, // Optional prefix for filename
+          );
+          savedImagePath = result.filePath;
+        } catch (error) {
+          console.error(
+            `Failed to save image for question ${questionAnswareDto.questionId}:`,
+            error,
+          );
+          throw new BadRequestException(
+            `Erro ao processar imagem para a questão ${questionAnswareDto.questionId}.`,
+          );
+        }
+      }
+
       const createdQuestionAnswer = await tx.questionAnswer.create({
         data: {
           questionId: questionAnswareDto.questionId,
@@ -506,8 +531,8 @@ export class EvaluationAnswareService {
           score,
           answerText: questionAnswareDto.answerText,
           answerNumber: questionAnswareDto.answerNumber,
-          answerBoolean: questionAnswareDto.answerBoolean,
-          answerImage: questionAnswareDto.answerImage,
+          answerBoolean: questionAnswareDto.answerBoolean, // Use the potentially saved path
+          answerImage: savedImagePath,
           selectedOptionId: questionAnswareDto.selectedOptionId,
         },
       });
