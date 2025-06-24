@@ -19,10 +19,34 @@ import { EvaluationModule } from './evaluation/evaluation.module';
 import { EvaluationAnswareModule } from './evaluation-answare/evaluation-answare.module';
 import { FormAnswareModule } from './form-answare/form-answare.module';
 import { RuleBuilderService } from './common/rule-builder/rule-builder.service';
+import { ImageStorageService } from './image-storage/image-storage.service';
+import { ImageUploadController } from './image-storage/image-upload.controller';
 
 @Module({
-  imports: [DatabaseModule, ElderlyModule, ContactModule, AddressModule, UserModule, ProfessionalModule, AuthModule, MailModule, QuestionModule, OptionModule, RuleModule, SeccionModule, FormModule, EvaluationModule, EvaluationAnswareModule, FormAnswareModule],
-  controllers: [AppController],
-  providers: [AppService, RuleEngineService, RuleBuilderService],
+  imports: [
+    DatabaseModule,
+    ElderlyModule,
+    ContactModule,
+    AddressModule,
+    UserModule,
+    ProfessionalModule,
+    AuthModule,
+    MailModule,
+    QuestionModule,
+    OptionModule,
+    RuleModule,
+    SeccionModule,
+    FormModule,
+    EvaluationModule,
+    EvaluationAnswareModule,
+    FormAnswareModule,
+  ],
+  controllers: [AppController, ImageUploadController],
+  providers: [
+    AppService,
+    RuleEngineService,
+    RuleBuilderService,
+    ImageStorageService,
+  ],
 })
 export class AppModule {}
