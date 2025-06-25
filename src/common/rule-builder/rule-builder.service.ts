@@ -9,9 +9,6 @@ interface BuildResult {
 
 @Injectable()
 export class RuleBuilderService {
-  /**
-   * Constrói a expressão e a descrição da regra a partir do DTO.
-   */
   build(dto: CreateRuleDto): BuildResult {
     switch (dto.type) {
       case 'SUM':
@@ -20,7 +17,7 @@ export class RuleBuilderService {
         return this.buildArithmeticExpression(dto);
       case 'CONDITIONAL':
         return this.buildConditionalExpression(dto);
-      case 'PRORATE': // Novo tipo de regra
+      case 'PRORATE':
         return this.buildProrateExpression(dto);
       default:
         throw new BadRequestException(

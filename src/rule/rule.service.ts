@@ -9,11 +9,10 @@ import { RuleBuilderService } from 'src/common/rule-builder/rule-builder.service
 export class RuleService {
   constructor(
     private prisma: PrismaService,
-    private ruleBuilder: RuleBuilderService, // Injeta o novo serviço
+    private ruleBuilder: RuleBuilderService,
   ) {}
 
   async create(dto: CreateRuleDto, tx?: Prisma.TransactionClient) {
-    // Usa o builder para gerar a expressão e a descrição
     const { expression, description } = this.ruleBuilder.build(dto);
     const prismaClient = tx || this.prisma;
 
@@ -27,8 +26,8 @@ export class RuleService {
         value1Type: dto.value1Type,
         value2Type: dto.value2Type,
         value1: dto.value1,
-        value2: dto.value2, // Pode ser ajustado conforme necessário
-        totalItems: dto.totalItems, // Novo campo para a regra de prorrateio
+        value2: dto.value2,
+        totalItems: dto.totalItems,
       },
     });
   }
@@ -42,7 +41,6 @@ export class RuleService {
   }
 
   async update(id: string, dto: UpdateRuleDto, tx?: Prisma.TransactionClient) {
-    // Usa o builder para gerar a expressão e a descrição atualizadas
     const { expression, description } = this.ruleBuilder.build(
       dto as CreateRuleDto,
     );
@@ -59,10 +57,10 @@ export class RuleService {
         value1Type: dto.value1Type,
         value2Type: dto.value2Type,
         value1: dto.value1,
-        value2: dto.value2, // Pode ser ajustado conforme necessário
-        totalItems: dto.totalItems, // Novo campo para a regra de prorrateio
-        condition: dto.condition, // Adiciona o campo de condição
-        operation: dto.operation, // Adiciona o campo de operação
+        value2: dto.value2,
+        totalItems: dto.totalItems,
+        condition: dto.condition,
+        operation: dto.operation,
       },
     });
   }

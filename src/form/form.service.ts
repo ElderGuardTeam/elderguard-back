@@ -200,7 +200,6 @@ export class FormService {
 
   async update(id: string, dto: UpdateFormDto) {
     return this.prisma.$transaction(async (tx) => {
-      // 1. Fetch current state of the form, including its currently associated seccions
       const formBeforeUpdate = await tx.form.findUnique({
         where: { id },
         include: { seccions: { select: { id: true } } },
@@ -217,12 +216,9 @@ export class FormService {
       let shouldDisconnectRule = false;
 
       if (dto.rule !== undefined) {
-        // Verifica se a propriedade 'rule' está presente no DTO (pode ser null)
         if (dto.rule === null) {
-          // Se 'rule' for explicitamente null, significa desconectar
           shouldDisconnectRule = true;
         } else if (!this.areAllRuleFieldsNull(dto.rule)) {
-          // Se 'rule' for um objeto e nem todos os campos forem null
           if (dto.rule.id) {
             const updatedRule = await this.ruleService.update(
               dto.rule.id,
@@ -279,7 +275,7 @@ export class FormService {
               delete (dataWithFormId as any).rule;
             }
           } else if (seccionPayload.rule === null) {
-            (dataWithFormId as any).ruleId = null; // Sinaliza para SeccionService desconectar
+            (dataWithFormId as any).ruleId = null;
             delete (dataWithFormId as any).rule;
           }
 
@@ -311,7 +307,6 @@ export class FormService {
         );
       }
 
-      // 3. Determine seccions to remove and delete them
       const seccionIdsToDelete = Array.from(currentSeccionIdsOnForm).filter(
         (existingId) => !finalSeccionIdsForForm.has(existingId),
       );
@@ -325,11 +320,10 @@ export class FormService {
         }
       }
 
-      // 4. Prepare form data for update (own fields and direct rule link)
       const {
         rule: _rule,
         seccions: _seccions,
-        seccionsIds: _dtoSeccionsIds, // Para evitar conflito com a variável questionsIds
+        seccionsIds: _dtoSeccionsIds,
         questionsIds,
         ...restOfDto
       } = dto;
@@ -344,8 +338,6 @@ export class FormService {
         formUpdateData.rule = { connect: { id: ruleIdToConnect } };
       }
 
-      // 5. Set the final state of seccions relation using the processed IDs
-      // This is now safe because seccions that would be disconnected have been deleted.
       if (dto.seccions !== undefined || dto.seccionsIds !== undefined) {
         formUpdateData.seccions = {
           set: Array.from(finalSeccionIdsForForm).map((sid) => ({ id: sid })),

@@ -7,9 +7,9 @@ import { ContactModule } from 'src/contact/contact.module';
 import { UserModule } from 'src/user/user.module';
 
 @Module({
-  imports: [AddressModule, ContactModule, UserModule], // Adicionamos o UserModule
+  imports: [AddressModule, ContactModule, UserModule],
   controllers: [ElderlyController],
   providers: [ElderlyService, PrismaService],
-  exports: [ElderlyService], // Exportamos o ElderlyService para que possa ser utilizado em outros módulos
+  exports: [ElderlyService],
 })
 export class ElderlyModule {}

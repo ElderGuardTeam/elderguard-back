@@ -200,7 +200,7 @@ export class ElderlyService {
 
         return { message: 'Idoso excluído com sucesso.' };
       },
-      { timeout: 10000 }, // Increase timeout to 10 seconds
+      { timeout: 10000 },
     );
   }
 

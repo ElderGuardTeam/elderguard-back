@@ -298,7 +298,6 @@ export class SeccionService {
   async remove(id: string, pTx?: Prisma.TransactionClient) {
     const prismaClient = pTx || this.prisma;
 
-    // Se não estiver dentro de uma transação externa, crie uma para garantir atomicidade.
     const operation = async (
       client: Prisma.TransactionClient | PrismaService,
     ) => {

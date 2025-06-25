@@ -83,27 +83,23 @@ export class ProfessionalService {
   }
 
   async update(id: string, data: UpdateProfessionalDto) {
-    // Destrinchar os campos do DTO
     const { name, email, phone, cpf, userType, password } = data;
 
-    // Preparar dados para atualização da entidade Professional
     const professionalUpdateData: Prisma.ProfessionalUpdateInput = {};
     if (name !== undefined) professionalUpdateData.name = name;
-    if (email !== undefined) professionalUpdateData.email = email; // Professional model has email
+    if (email !== undefined) professionalUpdateData.email = email;
     if (phone !== undefined)
       professionalUpdateData.phone = phone.replace(/\D/g, '');
-    if (cpf !== undefined) professionalUpdateData.cpf = cpf.replace(/\D/g, ''); // Professional model has cpf
+    if (cpf !== undefined) professionalUpdateData.cpf = cpf.replace(/\D/g, '');
 
-    // Preparar dados para atualização da entidade User associada
     const userUpdateData: Prisma.UserUpdateInput = {};
-    if (name !== undefined) userUpdateData.name = name; // Manter User.name sincronizado
-    if (email !== undefined) userUpdateData.email = email; // Manter User.email sincronizado
+    if (name !== undefined) userUpdateData.name = name;
+    if (email !== undefined) userUpdateData.email = email;
     if (userType !== undefined) userUpdateData.userType = userType;
     if (password !== undefined && password.length > 0) {
       userUpdateData.password = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
     }
     if (cpf !== undefined) {
-      // Se o cpf do profissional mudar, o login do usuário também deve mudar
       userUpdateData.login = cpf.replace(/\D/g, '');
     }
 
@@ -116,7 +112,6 @@ export class ProfessionalService {
         throw new NotFoundException('Profissional não encontrado');
       }
 
-      // Verificar unicidade do CPF/login se estiver sendo alterado
       if (userUpdateData.login && userUpdateData.login !== professional.cpf) {
         const existingUserWithNewLogin = await tx.user.findUnique({
           where: { login: userUpdateData.login as string },

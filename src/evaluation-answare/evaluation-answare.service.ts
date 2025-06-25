@@ -18,7 +18,7 @@ import { ImageStorageService } from 'src/image-storage/image-storage.service';
 export interface FormScoreHistory {
   formId: string;
   formTitle: string;
-  formType: string; // Opcional, se necessário
+  formType: string;
   scores: {
     evaluationAnswareId: string;
     date: Date;
@@ -35,9 +35,6 @@ export class EvaluationAnswareService {
     private readonly imageStorageService: ImageStorageService,
   ) {}
 
-  /**
-   * Cria o registro principal de EvaluationAnsware com a resposta do PRIMEIRO formulário.
-   */
   async create(createDto: CreateEvaluationAnswareDto) {
     if (!createDto.formAnswares || createDto.formAnswares.length !== 1) {
       throw new BadRequestException(
@@ -46,7 +43,6 @@ export class EvaluationAnswareService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // Busca o idoso para passar ao contexto das regras
       const elderly = await tx.elderly.findUnique({
         where: { id: createDto.elderlyId },
       });
@@ -56,7 +52,6 @@ export class EvaluationAnswareService {
         );
       }
 
-      // Verify Professional existence
       const professional = await tx.professional.findUnique({
         where: { id: createDto.professionalId },
       });
@@ -74,27 +69,23 @@ export class EvaluationAnswareService {
         },
       });
 
-      // Processa e salva o primeiro formulário
       await this.processAndScoreForm(
         tx,
         evaluationAnsware.id,
         createDto.formAnswares[0],
-        elderly, // Passa o objeto 'elderly'
-        createDto.professionalId, // Passa o 'professionalId'
+        elderly,
+        createDto.professionalId,
       );
 
       return this._findEvaluationAnswareById(tx, evaluationAnsware.id);
     });
   }
 
-  /**
-   * Adiciona a resposta de um novo formulário a uma EvaluationAnsware existente.
-   */
   async addFormAnsware(id: string, addDto: AddFormAnswareDto) {
     return this.prisma.$transaction(async (tx) => {
       const evaluationAnsware = await tx.evaluationAnsware.findUnique({
         where: { id },
-        include: { elderly: true }, // Inclui o idoso na busca
+        include: { elderly: true },
       });
 
       if (!evaluationAnsware) {
@@ -103,7 +94,6 @@ export class EvaluationAnswareService {
         );
       }
 
-      // Verify Professional existence
       const professional = await tx.professional.findUnique({
         where: { id: addDto.professionalId },
       });
@@ -115,12 +105,11 @@ export class EvaluationAnswareService {
 
       const { elderly } = evaluationAnsware;
 
-      // Iterate over the formAnswares array and process each one
       for (const formAnsware of addDto.formAnswares) {
         await this.processAndScoreForm(
           tx,
           evaluationAnsware.id,
-          formAnsware, // Pass each formAnsware individually
+          formAnsware,
           elderly,
           addDto.professionalId,
         );
@@ -135,10 +124,6 @@ export class EvaluationAnswareService {
     });
   }
 
-  /**
-   * Pausa uma avaliação, salvando o progresso de um formulário sem calcular a pontuação
-   * e atualizando o status da avaliação para 'PAUSED'.
-   */
   async pause(id: string, pauseDto: PauseEvaluationAnswareDto) {
     return this.prisma.$transaction(async (tx) => {
       const evaluationAnsware = await tx.evaluationAnsware.findUnique({
@@ -162,7 +147,7 @@ export class EvaluationAnswareService {
       }
 
       const { elderly } = evaluationAnsware;
-      const formAnswareDto = pauseDto.formAnswares[0]; // Access the first element of the array
+      const formAnswareDto = pauseDto.formAnswares[0];
 
       if (!formAnswareDto) {
         throw new BadRequestException(
@@ -187,10 +172,6 @@ export class EvaluationAnswareService {
     });
   }
 
-  /**
-   * Finaliza uma avaliação, processando o último formulário e atualizando o status
-   * da avaliação para 'COMPLETED'.
-   */
   async complete(id: string, completeDto: PauseEvaluationAnswareDto) {
     return this.prisma.$transaction(async (tx) => {
       const evaluationAnsware = await tx.evaluationAnsware.findUnique({
@@ -214,9 +195,8 @@ export class EvaluationAnswareService {
       }
 
       const { elderly } = evaluationAnsware;
-      const formAnswareDto = completeDto.formAnswares[0]; // Assume que o último formulário está no array
+      const formAnswareDto = completeDto.formAnswares[0];
 
-      // Processa e pontua o último formulário
       await this.processAndScoreForm(
         tx,
         id,
@@ -234,10 +214,6 @@ export class EvaluationAnswareService {
     });
   }
 
-  /**
-   * Lógica centralizada para processar e pontuar UM ÚNICO formulário.
-   * @private
-   */
   private async processAndScoreForm(
     tx: Prisma.TransactionClient,
     evaluationAnswareId: string,
@@ -245,20 +221,17 @@ export class EvaluationAnswareService {
     elderly: Elderly,
     professionalId: string,
   ) {
-    // 1. Busca o formulário e suas regras para cálculo de pontuação
     const form = await tx.form.findUnique({
       where: { id: formAnswareDto.formId },
       include: {
-        rule: true, // Relação singular com Rule
-        // Para buscar questões dentro de seções: Form -> Seccion -> questionsRel -> question
+        rule: true,
+
         seccions: {
           include: {
             rule: true,
             questionsRel: {
-              // Acessa a tabela pivo Seccion_has_Question
               include: {
                 question: {
-                  // Acessa a entidade Question real
                   include: {
                     rule: true,
                     options: true,
@@ -268,13 +241,11 @@ export class EvaluationAnswareService {
             },
           },
         },
-        // Para buscar questões diretas do formulário: Form -> questionsRel -> question
+
         questionsRel: {
-          // Acessa a tabela pivo Form_has_Question
           orderBy: { index: 'asc' },
           include: {
             question: {
-              // Acessa a entidade Question real
               include: {
                 rule: true,
                 options: true,
@@ -291,7 +262,6 @@ export class EvaluationAnswareService {
       );
     }
 
-    // 2. Extrai as questões da estrutura de dados do formulário
     const topLevelQuestions = form.questionsRel.map((rel) => rel.question);
     const sectionQuestions = form.seccions.flatMap((sec) =>
       sec.questionsRel.map((rel) => rel.question),
@@ -309,12 +279,10 @@ export class EvaluationAnswareService {
 
       switch (question.type) {
         case 'SCORE':
-          // For SCORE type questions, use the score directly from the DTO if provided, otherwise 0.
           calculatedScore = answareDto.score ?? 0;
           break;
         case 'SELECT':
         case 'MULTISELECT': {
-          // For SELECT/MULTISELECT, calculate score from selected options
           const selectedOptions = question.options
             .filter((opt) => {
               if (question.type === 'SELECT' && answareDto.selectedOptionId) {
@@ -332,7 +300,6 @@ export class EvaluationAnswareService {
               description: opt.description ?? '',
             }));
 
-          // If there's a rule, use it. Otherwise, sum the scores of selected options.
           if (question.rule) {
             const questionContext: EvaluationContext = {
               selectedOptions,
@@ -351,27 +318,21 @@ export class EvaluationAnswareService {
           break;
         }
         case 'BOOLEAN': {
-          // Handle BOOLEAN questions specifically
           if (question.rule) {
-            // If a rule is defined for the boolean question, use the rule engine
             const questionContext: EvaluationContext = {
-              answerBoolean: answareDto.answerBoolean, // Pass the boolean answer to the context // This line is already in the compiled JS
-              elderly, // Keep elderly in context if rules need it
+              answerBoolean: answareDto.answerBoolean,
+              elderly,
             };
             calculatedScore = this.ruleEngine.calculateScore(
               [question.rule],
               questionContext,
             );
           } else {
-            // If no rule, fallback to the score provided in the DTO, or 0
-            // This might still be 0 if the DTO doesn't provide a score for boolean questions
             calculatedScore = answareDto.score ?? 0;
           }
           break;
         }
         default:
-          // For other question types (TEXT, NUMBER, IMAGE, BOOLEAN), score is typically 0
-          // unless explicitly provided in the DTO.
           calculatedScore = answareDto.score ?? 0;
           break;
       }
@@ -399,7 +360,6 @@ export class EvaluationAnswareService {
 
     let formScore: number;
 
-    // Se o formulário tiver uma regra específica, usa o RuleEngine.
     if (form.rule) {
       const scoresOutsideSeccion = allQuestionScores.filter((qs) =>
         form.questionsRel.some((rel) => rel.questionId === qs.questionId),
@@ -411,8 +371,6 @@ export class EvaluationAnswareService {
       };
       formScore = this.ruleEngine.calculateScore([form.rule], formContext);
     } else {
-      // Comportamento padrão se não houver regra no formulário:
-      // Soma as pontuações das seções com as pontuações das questões de nível superior.
       const totalSeccionScore = seccionScores.reduce(
         (acc, curr) => acc + curr.score,
         0,
@@ -426,7 +384,6 @@ export class EvaluationAnswareService {
       formScore = totalSeccionScore + totalTopLevelQuestionScore;
     }
 
-    // 3. Persiste os dados usando o método centralizado
     const questionScoresMap = new Map(
       allQuestionScores.map((qs) => [qs.questionId, qs.score]),
     );
@@ -441,10 +398,6 @@ export class EvaluationAnswareService {
     );
   }
 
-  /**
-   * Salva o progresso de um formulário sem calcular a pontuação.
-   * @private
-   */
   private async saveFormProgress(
     tx: Prisma.TransactionClient,
     evaluationAnswareId: string,
@@ -452,7 +405,6 @@ export class EvaluationAnswareService {
     elderly: Elderly,
     professionalId: string,
   ) {
-    // Chama o método de persistência com pontuações zeradas
     await this._upsertFormAnsware(
       tx,
       evaluationAnswareId,
@@ -463,10 +415,6 @@ export class EvaluationAnswareService {
     );
   }
 
-  /**
-   * Centraliza a lógica de criar ou atualizar uma resposta de formulário e suas questões.
-   * @private
-   */
   private async _upsertFormAnsware(
     tx: Prisma.TransactionClient,
     evaluationAnswareId: string,
@@ -484,7 +432,7 @@ export class EvaluationAnswareService {
       },
       update: {
         totalScore: scores.formScore,
-        questionsAnswares: { deleteMany: {} }, // Limpa respostas antigas para atualizar
+        questionsAnswares: { deleteMany: {} },
       },
       create: {
         formId: formAnswareDto.formId,
@@ -501,7 +449,6 @@ export class EvaluationAnswareService {
       const score =
         scores.questionScores.get(questionAnswareDto.questionId) ?? 0;
 
-      // Handle image upload if answerImage is provided and is a base64 string
       let savedImagePath: string | undefined = questionAnswareDto.answerImage;
       if (
         questionAnswareDto.answerImage &&
@@ -510,7 +457,7 @@ export class EvaluationAnswareService {
         try {
           const result = await this.imageStorageService.saveBase64Image(
             questionAnswareDto.answerImage,
-            `question-${questionAnswareDto.questionId}`, // Optional prefix for filename
+            `question-${questionAnswareDto.questionId}`,
           );
           savedImagePath = result.filePath;
         } catch (error) {
@@ -531,13 +478,12 @@ export class EvaluationAnswareService {
           score,
           answerText: questionAnswareDto.answerText,
           answerNumber: questionAnswareDto.answerNumber,
-          answerBoolean: questionAnswareDto.answerBoolean, // Use the potentially saved path
+          answerBoolean: questionAnswareDto.answerBoolean,
           answerImage: savedImagePath,
           selectedOptionId: questionAnswareDto.selectedOptionId,
         },
       });
 
-      // Handle optionAnswers for MULTISELECT questions
       if (
         questionAnswareDto.optionAnswers &&
         questionAnswareDto.optionAnswers.length > 0
@@ -557,7 +503,7 @@ export class EvaluationAnswareService {
           data: questionAnswareDto.optionAnswers.map((opt) => ({
             optionId: opt.optionId,
             questionAnswerId: createdQuestionAnswer.id,
-            score: optionScoresMap.get(opt.optionId) ?? 0, // Get score from DB, default to 0 if not found
+            score: optionScoresMap.get(opt.optionId) ?? 0,
             answerText: opt.answerText,
             answerNumber: opt.answerNumber,
             answerBoolean: opt.answerBoolean,
@@ -665,7 +611,6 @@ export class EvaluationAnswareService {
   }
 
   async compareFormScoreWithOthersAverage(formId: string, elderlyId: string) {
-    // 1. Pega a pontuação mais recente do usuário para este formulário
     const userAnsware = await this.prisma.formAnsware.findFirst({
       where: {
         formId,
@@ -688,7 +633,6 @@ export class EvaluationAnswareService {
       );
     }
 
-    // 2. Calcula a pontuação média de outros idosos para este formulário
     const aggregateResult = await this.prisma.formAnsware.aggregate({
       _avg: {
         totalScore: true,
@@ -699,7 +643,7 @@ export class EvaluationAnswareService {
       where: {
         formId,
         elderlyId: {
-          not: elderlyId, // Exclui o idoso atual da média
+          not: elderlyId,
         },
         evaluationAnsware: {
           status: 'COMPLETED',
@@ -714,27 +658,23 @@ export class EvaluationAnswareService {
     };
   }
 
-  /**
-   * Retorna o histórico de pontuações de formulários para um idoso,
-   * agrupado por tipo de formulário e ordenado por data.
-   */
   async getElderlyFormsScoresHistory(
     elderlyId: string,
   ): Promise<FormScoreHistory[]> {
     const evaluations = await this.prisma.evaluationAnsware.findMany({
       where: {
         elderlyId,
-        status: 'COMPLETED', // Considera apenas avaliações concluídas para o histórico
+        status: 'COMPLETED',
       },
       include: {
         formAnswares: {
-          orderBy: { created: 'asc' }, // Ordena as respostas de formulário pela data de criação
+          orderBy: { created: 'asc' },
           include: {
-            form: { select: { id: true, title: true, type: true } }, // Seleciona detalhes do formulário
+            form: { select: { id: true, title: true, type: true } },
           },
         },
       },
-      orderBy: { created: 'asc' }, // Ordena as avaliações pela data de criação
+      orderBy: { created: 'asc' },
     });
 
     const historyMap = new Map<string, FormScoreHistory>();
@@ -743,7 +683,7 @@ export class EvaluationAnswareService {
       for (const formAnsware of evaluation.formAnswares) {
         const formId = formAnsware.formId;
         const formTitle = formAnsware.form.title ?? '';
-        const formType = formAnsware.form.type ?? ''; // Obtém o tipo do formulário
+        const formType = formAnsware.form.type ?? '';
 
         if (!historyMap.has(formId)) {
           historyMap.set(formId, { formId, formTitle, formType, scores: [] });
@@ -758,7 +698,6 @@ export class EvaluationAnswareService {
       }
     }
 
-    // Converte os valores do mapa para um array e ordena por título do formulário para saída consistente
     const result = Array.from(historyMap.values()).sort((a, b) =>
       a.formTitle.localeCompare(b.formTitle),
     );
@@ -766,15 +705,10 @@ export class EvaluationAnswareService {
     return result;
   }
 
-  /**
-   * Retorna as pontuações totais das respostas de formulário para um idoso,
-   * filtradas pelo tipo de formulário (título) do formulário enviado.
-   */
   async getElderlyFormScoresByType(
     elderlyId: string,
     formId: string,
   ): Promise<FormScoreHistory[]> {
-    // 1. Obter o título do formulário (que representa o "tipo" do formulário)
     const targetForm = await this.prisma.form.findUnique({
       where: { id: formId },
       select: { type: true },
@@ -788,7 +722,6 @@ export class EvaluationAnswareService {
 
     const targetFormType = targetForm.type;
 
-    // 2. Obter o histórico completo de pontuações do idoso e filtrar pelo título do formulário
     const allFormsHistory = await this.getElderlyFormsScoresHistory(elderlyId);
 
     return allFormsHistory.filter(

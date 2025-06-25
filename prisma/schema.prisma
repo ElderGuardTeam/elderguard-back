@@ -247,11 +247,8 @@ model Rule {
   value1      Int?
   value2      Int?
   totalItems  Int?
-  // Armazena a expressão que a RuleEngine irá executar
   expression  String?
-  // Armazena uma descrição amigável da regra para exibição
   description String?
-  // Usado para definir a ordem de execução de múltiplas regras
   priority    Int        @default(0)
   condition   String?
   operation   String?

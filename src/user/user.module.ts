@@ -4,6 +4,6 @@ import { PrismaService } from 'src/database/prisma.service';
 
 @Module({
   providers: [UserService, PrismaService],
-  exports: [UserService], // Para ser usado em ElderlyModule
+  exports: [UserService],
 })
 export class UserModule {}

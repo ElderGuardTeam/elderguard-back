@@ -9,9 +9,9 @@ export class MailService {
     const resetLink = `http://localhost:3001/reset-password?token=${token}`;
     try {
       await this.mailerService.sendMail({
-        to: email, // Destinatário
+        to: email,
         subject: 'Recuperação de Senha',
-        text: `Clique no link para redefinir sua senha: ${resetLink}`, // Corpo do e-mail em texto puro
+        text: `Clique no link para redefinir sua senha: ${resetLink}`, 
       });
 
       console.log(`E-mail enviado para ${email}`);

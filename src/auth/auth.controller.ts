@@ -39,7 +39,7 @@ export class AuthController {
       where: { id: userId },
       data: {
         password: hashedPassword,
-        mustChangePassword: false, // Define que o usuário não precisa mais alterar a senha
+        mustChangePassword: false,
       },
     });
 

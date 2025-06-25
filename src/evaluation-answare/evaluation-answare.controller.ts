@@ -16,7 +16,7 @@ import {
 } from '@nestjs/common';
 import { EvaluationAnswareService } from './evaluation-answare.service';
 import { CreateEvaluationAnswareDto } from './dto/create-evaluation-answare.dto';
-import { AddFormAnswareDto } from './dto/add-form-answare.dto'; // Importar o novo DTO
+import { AddFormAnswareDto } from './dto/add-form-answare.dto';
 import { Roles } from 'src/auth/roles.decorator';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from 'src/auth/roles.guard';
@@ -28,7 +28,6 @@ import type { FormScoreHistory } from './evaluation-answare.service';
 export class EvaluationAnswareController {
   constructor(
     private readonly evaluationAnswareService: EvaluationAnswareService,
-    // private readonly userService: UserService, // UserService is not used in this controller
   ) {}
 
   @Post()
@@ -38,14 +37,13 @@ export class EvaluationAnswareController {
     return this.evaluationAnswareService.create(createEvaluationAnswareDto);
   }
 
-  @Patch(':id/add-form') // Endpoint mais descritivo
+  @Patch(':id/add-form')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserType.ADMIN, UserType.TECH_PROFESSIONAL)
   addFormAnsware(
     @Param('id') id: string,
     @Body() addFormAnswareDto: AddFormAnswareDto,
   ) {
-    // O método de patch agora tem um nome mais claro e usa o DTO específico
     return this.evaluationAnswareService.addFormAnsware(id, addFormAnswareDto);
   }
 
@@ -63,7 +61,6 @@ export class EvaluationAnswareController {
     @Param('id') id: string,
     @Body() completeDto: PauseEvaluationAnswareDto,
   ) {
-    // Reutiliza PauseEvaluationAnswareDto, pois a estrutura é a mesma (formAnswares e professionalId)
     return this.evaluationAnswareService.complete(id, completeDto);
   }
 
@@ -129,7 +126,6 @@ export class EvaluationAnswareController {
   ): Promise<FormScoreHistory[]> {
     const user = req.user;
 
-    // Security check: Ensure a regular user can only access their own data
     if (user.userType === UserType.USER && user.elderlyId !== elderlyId) {
       throw new ForbiddenException(
         'Acesso negado. Você só pode ver suas próprias avaliações.',
@@ -141,7 +137,7 @@ export class EvaluationAnswareController {
     );
   }
 
-  @Get('history/:elderlyId') // Novo endpoint para histórico de pontuações
+  @Get('history/:elderlyId')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   getElderlyFormsScoresHistory(
     @Param('elderlyId') elderlyId: string,

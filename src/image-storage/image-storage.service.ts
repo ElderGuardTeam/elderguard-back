@@ -8,29 +8,22 @@ export class ImageStorageService {
   private readonly UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 
   constructor() {
-    // Ensure the uploads directory exists
     if (!fs.existsSync(this.UPLOADS_DIR)) {
       fs.mkdirSync(this.UPLOADS_DIR, { recursive: true });
     }
   }
 
-  // Este serviço poderia ter lógicas mais complexas no futuro,
-  // como redimensionar imagens, comprimir, etc.
-  // Por enquanto, ele apenas confirma o sucesso do upload.
   handleFileUpload(file: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Nenhum arquivo enviado.');
     }
 
-    // Retorna o caminho parcial que o front-end usará para acessar a imagem.
-    // Ex: /uploads/imagem-1678886400000.png
     return {
       message: 'Upload de imagem bem-sucedido!',
       filePath: `/uploads/${file.filename}`,
     };
   }
 
-  // Handles base64 encoded image strings
   async saveBase64Image(
     base64String: string,
     filenamePrefix?: string,

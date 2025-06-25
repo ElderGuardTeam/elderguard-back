@@ -6,7 +6,6 @@ import { Injectable } from '@nestjs/common';
 import { Rule } from '@prisma/client';
 import { create, all } from 'mathjs';
 
-// A interface EvaluationContext permanece a mesma
 export interface EvaluationContext {
   questionScores?: { questionId: string; score: number }[];
   seccionScores?: { seccionId: string; score: number }[];
@@ -40,8 +39,6 @@ export class RuleEngineService {
       return finalScore;
     }
 
-    // --- LÓGICA PADRÃO CORRIGIDA ---
-    // Se não houver regras, o comportamento padrão é somar todas as pontuações do contexto.
     let defaultScore = 0;
     if (context.seccionScores?.length) {
       defaultScore += context.seccionScores.reduce(
@@ -58,7 +55,6 @@ export class RuleEngineService {
     if (defaultScore > 0) {
       return defaultScore;
     }
-    // Apenas se não houver seções ou questões, usa as opções (para o nível de questão)
     if (context.selectedOptions?.length) {
       return context.selectedOptions.reduce((acc, opt) => acc + opt.score, 0);
     }

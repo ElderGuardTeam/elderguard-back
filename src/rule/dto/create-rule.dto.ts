@@ -42,5 +42,5 @@ export class CreateRuleDto {
 
   @IsOptional()
   @IsNumber()
-  totalItems?: number; // Novo campo para a regra de prorrateio
+  totalItems?: number;
 }

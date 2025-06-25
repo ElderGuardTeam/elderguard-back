@@ -8,7 +8,7 @@ export class PauseEvaluationAnswareDto {
   professionalId: string;
 
   @ValidateNested()
-  @IsArray() // Add IsArray decorator as the payload indicates it's an array
+  @IsArray()
   @Type(() => CreateFormAnswareNestedDto)
-  formAnswares: CreateFormAnswareNestedDto[]; // Change to array type
+  formAnswares: CreateFormAnswareNestedDto[];
 }

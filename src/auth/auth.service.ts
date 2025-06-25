@@ -49,7 +49,7 @@ export class AuthService {
       if (user.mustChangePassword) {
         return {
           message: 'ALTER_PASSWORD_REQUIRED',
-          userId: user.id, // Retorna o ID para alterar a senha depois
+          userId: user.id,
         };
       }
       const access_token = this.jwtService.sign(payload);
