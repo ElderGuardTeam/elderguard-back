@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { MailerService } from '@nestjs-modules/mailer';
 import { Injectable } from '@nestjs/common';
 
@@ -11,7 +12,7 @@ export class MailService {
       await this.mailerService.sendMail({
         to: email,
         subject: 'Recuperação de Senha',
-        text: `Clique no link para redefinir sua senha: ${resetLink}`, 
+        text: `Clique no link para redefinir sua senha: ${resetLink}`,
       });
 
       console.log(`E-mail enviado para ${email}`);
