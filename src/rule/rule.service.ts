@@ -28,6 +28,7 @@ export class RuleService {
         value2Type: dto.value2Type,
         value1: dto.value1,
         value2: dto.value2, // Pode ser ajustado conforme necessário
+        totalItems: dto.totalItems, // Novo campo para a regra de prorrateio
       },
     });
   }
@@ -53,6 +54,15 @@ export class RuleService {
         expression,
         description,
         priority: dto.priority,
+        type: dto.type,
+        maxScore: dto.maxScore,
+        value1Type: dto.value1Type,
+        value2Type: dto.value2Type,
+        value1: dto.value1,
+        value2: dto.value2, // Pode ser ajustado conforme necessário
+        totalItems: dto.totalItems, // Novo campo para a regra de prorrateio
+        condition: dto.condition, // Adiciona o campo de condição
+        operation: dto.operation, // Adiciona o campo de operação
       },
     });
   }

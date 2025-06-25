@@ -246,6 +246,7 @@ model Rule {
   value2Type  String?
   value1      Int?
   value2      Int?
+  totalItems  Int?
   // Armazena a expressão que a RuleEngine irá executar
   expression  String?
   // Armazena uma descrição amigável da regra para exibição
