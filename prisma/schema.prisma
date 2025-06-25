@@ -189,6 +189,7 @@ enum RuleType {
   CONDITIONAL
   SUM
   ARITHMETIC
+  PRORATE
 }
 
 model Form {

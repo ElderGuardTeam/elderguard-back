@@ -20,6 +20,8 @@ export class RuleBuilderService {
         return this.buildArithmeticExpression(dto);
       case 'CONDITIONAL':
         return this.buildConditionalExpression(dto);
+      case 'PRORATE': // Novo tipo de regra
+        return this.buildProrateExpression(dto);
       default:
         throw new BadRequestException(
           `Tipo de regra desconhecido: ${dto.type}`,
@@ -77,6 +79,17 @@ export class RuleBuilderService {
     return {
       expression: `(${conditionStr}) ? (${thenStr}) : currentScore`,
       description: `Se (pontuação ${condition} ${value1}) então (pontuação ${operation} ${value2}) senão mantém a pontuação.`,
+    };
+  }
+  private buildProrateExpression(dto: CreateRuleDto): BuildResult {
+    if (!dto.totalItems || dto.totalItems <= 0) {
+      throw new BadRequestException(
+        'Para regras de prorrateio, o número total de itens (totalItems) é obrigatório e deve ser positivo.',
+      );
+    }
+    return {
+      expression: `(SUM(questionScores) * ${dto.totalItems}) / COUNT(questionScores)`,
+      description: `Soma as pontuações das questões, e ajusta proporcionalmente para um total de ${dto.totalItems} itens, tratando ausentes.`,
     };
   }
 }

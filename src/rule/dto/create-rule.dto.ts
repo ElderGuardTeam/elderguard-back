@@ -39,4 +39,8 @@ export class CreateRuleDto {
   @IsOptional()
   @IsNumber()
   priority?: number;
+
+  @IsOptional()
+  @IsNumber()
+  totalItems?: number; // Novo campo para a regra de prorrateio
 }
