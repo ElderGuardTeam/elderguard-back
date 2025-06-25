@@ -1,4 +1,3 @@
-/* eslint-disable no-prototype-builtins */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -217,8 +216,13 @@ export class FormService {
       let ruleIdToConnect: string | undefined = undefined;
       let shouldDisconnectRule = false;
 
-      if (dto.rule) {
-        if (!this.areAllRuleFieldsNull(dto.rule)) {
+      if (dto.rule !== undefined) {
+        // Verifica se a propriedade 'rule' está presente no DTO (pode ser null)
+        if (dto.rule === null) {
+          // Se 'rule' for explicitamente null, significa desconectar
+          shouldDisconnectRule = true;
+        } else if (!this.areAllRuleFieldsNull(dto.rule)) {
+          // Se 'rule' for um objeto e nem todos os campos forem null
           if (dto.rule.id) {
             const updatedRule = await this.ruleService.update(
               dto.rule.id,
@@ -234,13 +238,6 @@ export class FormService {
             );
             ruleIdToConnect = createdRule.id;
           }
-        }
-      } else if (dto.hasOwnProperty('ruleId')) {
-        // ruleId is explicitly provided (could be string or null)
-        if (dto.rule === null) {
-          shouldDisconnectRule = true;
-        } else {
-          ruleIdToConnect = dto.rule;
         }
       }
 
