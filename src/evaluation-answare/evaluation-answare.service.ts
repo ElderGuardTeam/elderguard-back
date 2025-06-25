@@ -11,7 +11,7 @@ import {
   EvaluationContext,
 } from '../common/rule-engine/rule-engine.service';
 import { AddFormAnswareDto } from './dto/add-form-answare.dto';
-import { Prisma, Elderly } from '@prisma/client';
+import { Prisma, Elderly, EvaluationAnswareStatus } from '@prisma/client';
 import { PauseEvaluationAnswareDto } from './dto/pause-evaluation-answare.dto';
 
 import { ImageStorageService } from 'src/image-storage/image-storage.service';
@@ -581,6 +581,7 @@ export class EvaluationAnswareService {
     return this.prisma.evaluationAnsware.findMany({
       where: {
         elderlyId,
+        status: EvaluationAnswareStatus.COMPLETED,
       },
       include: {
         elderly: true,

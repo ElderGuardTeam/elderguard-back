@@ -78,9 +78,8 @@ export class EvaluationAnswareController {
     @Param('elderlyId') elderlyId: string,
     @Request() req,
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const user = req.user;
-    if (!elderlyId) {
+    if (user.elderlyId !== elderlyId) {
       throw new ForbiddenException(
         'Acesso negado. Você só pode ver suas próprias avaliações.',
       );
