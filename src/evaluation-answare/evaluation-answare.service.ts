@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 import {
   Injectable,
   NotFoundException,
@@ -195,12 +196,63 @@ export class EvaluationAnswareService {
       }
 
       const { elderly } = evaluationAnsware;
-      const formAnswareDto = completeDto.formAnswares[0];
+      let formAnswareDto: CreateFormAnswareNestedDto | undefined =
+        completeDto.formAnswares?.[0];
+
+      let formToProcess: CreateFormAnswareNestedDto;
+
+      if (formAnswareDto) {
+        // Se uma resposta de formulário for fornecida no DTO, use-a.
+        formToProcess = formAnswareDto;
+      } else {
+        // Se nenhuma resposta de formulário for fornecida,
+        // tente encontrar a última resposta de formulário para esta avaliação.
+        const lastFormAnsware = await tx.formAnsware.findFirst({
+          where: { evaluationAnswareId: id },
+          orderBy: { created: 'desc' },
+          include: {
+            questionsAnswares: {
+              include: {
+                optionAnswers: true,
+              },
+            },
+          },
+        });
+
+        if (!lastFormAnsware) {
+          throw new BadRequestException(
+            'Não há respostas de formulário para finalizar esta avaliação. Por favor, adicione uma resposta de formulário antes de finalizar.',
+          );
+        }
+
+        // Reconstrói o DTO a partir da última resposta de formulário salva.
+        formToProcess = {
+          formId: lastFormAnsware.formId,
+          elderlyId: lastFormAnsware.elderlyId,
+          techProfessionalId: lastFormAnsware.techProfessionalId,
+          questionsAnswares: lastFormAnsware.questionsAnswares.map((qa) => ({
+            questionId: qa.questionId,
+            answerText: qa.answerText,
+            answerNumber: qa.answerNumber,
+            answerBoolean: qa.answerBoolean,
+            answerImage: qa.answerImage,
+            selectedOptionId: qa.selectedOptionId,
+            score: qa.score, // O score é recalculado em processAndScoreForm
+            optionAnswers: qa.optionAnswers.map((oa) => ({
+              optionId: oa.optionId,
+              answerText: oa.answerText,
+              answerNumber: oa.answerNumber,
+              answerBoolean: oa.answerBoolean,
+              score: oa.score, // O score é recalculado em processAndScoreForm
+            })),
+          })),
+        };
+      }
 
       await this.processAndScoreForm(
         tx,
         id,
-        formAnswareDto,
+        formToProcess, // Usa o DTO determinado (do corpo da requisição ou o último salvo)
         elderly,
         completeDto.professionalId,
       );
@@ -449,7 +501,8 @@ export class EvaluationAnswareService {
       const score =
         scores.questionScores.get(questionAnswareDto.questionId) ?? 0;
 
-      let savedImagePath: string | undefined = questionAnswareDto.answerImage;
+      let savedImagePath: string | undefined | null =
+        questionAnswareDto.answerImage;
       if (
         questionAnswareDto.answerImage &&
         questionAnswareDto.answerImage.startsWith('data:image/')

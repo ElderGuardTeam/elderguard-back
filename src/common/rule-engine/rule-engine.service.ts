@@ -13,7 +13,7 @@ export interface EvaluationContext {
   answeredQuestions?: number;
   totalQuestions?: number;
   elderly?: { education: string };
-  answerBoolean?: boolean;
+  answerBoolean?: boolean | null;
 }
 
 @Injectable()

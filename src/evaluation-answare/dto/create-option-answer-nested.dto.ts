@@ -18,13 +18,13 @@ export class CreateOptionAnswerNestedDto {
 
   @IsString()
   @IsOptional()
-  answerText?: string;
+  answerText?: string | null;
 
   @IsNumber()
   @IsOptional()
-  answerNumber?: number;
+  answerNumber?: number | null;
 
   @IsBoolean()
   @IsOptional()
-  answerBoolean?: boolean;
+  answerBoolean?: boolean | null;
 }

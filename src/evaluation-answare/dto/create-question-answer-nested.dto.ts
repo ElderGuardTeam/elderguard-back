@@ -18,31 +18,31 @@ export class CreateQuestionAnswerNestedDto {
 
   @IsString()
   @IsOptional()
-  answerText?: string;
+  answerText?: string | null;
 
   @IsNumber()
   @IsOptional()
-  answerNumber?: number;
+  answerNumber?: number | null;
 
   @IsString()
   @IsOptional()
-  answerImage?: string;
+  answerImage?: string | null;
 
   @IsBoolean()
   @IsOptional()
-  answerBoolean?: boolean;
+  answerBoolean?: boolean | null;
 
   @IsUUID()
   @IsOptional()
-  selectedOptionId?: string;
+  selectedOptionId?: string | null;
 
   @IsNumber()
   @IsOptional()
-  score?: number;
+  score?: number | null;
 
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateOptionAnswerNestedDto)
   @IsOptional()
-  optionAnswers?: CreateOptionAnswerNestedDto[];
+  optionAnswers?: CreateOptionAnswerNestedDto[] | null;
 }
