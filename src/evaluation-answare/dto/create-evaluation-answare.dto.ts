@@ -22,7 +22,6 @@ export class CreateEvaluationAnswareDto {
 
   @IsEnum(EvaluationAnswareStatus)
   @IsOptional()
-  @IsOptional()
   status?: EvaluationAnswareStatus;
 
   @IsUUID()

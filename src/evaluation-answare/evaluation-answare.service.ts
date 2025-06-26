@@ -62,11 +62,33 @@ export class EvaluationAnswareService {
         );
       }
 
+      const evaluation = await tx.evaluation.findUnique({
+        where: { id: createDto.evaluationId },
+        include: {
+          _count: {
+            select: { formsRel: true },
+          },
+        },
+      });
+
+      if (!evaluation) {
+        throw new NotFoundException(
+          `Avaliação com ID ${createDto.evaluationId} não encontrada.`,
+        );
+      }
+
+      const totalFormsInEvaluation = evaluation._count.formsRel;
+      const isSingleFormEvaluation = totalFormsInEvaluation === 1;
+
+      const finalStatus = isSingleFormEvaluation
+        ? EvaluationAnswareStatus.COMPLETED
+        : (createDto.status ?? EvaluationAnswareStatus.IN_PROGRESS);
+
       const evaluationAnsware = await tx.evaluationAnsware.create({
         data: {
           elderlyId: createDto.elderlyId,
           evaluationId: createDto.evaluationId,
-          status: 'IN_PROGRESS',
+          status: finalStatus,
         },
       });
 
