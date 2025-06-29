@@ -402,7 +402,15 @@ export class EvaluationAnswareService {
               questionContext,
             );
           } else {
-            calculatedScore = answareDto.score ?? 0;
+            const descriptionToFind = answareDto.answerBoolean
+              ? 'true'
+              : 'false';
+            const selectedOption = question.options.find(
+              (opt) =>
+                opt.description?.trim().toLocaleLowerCase() ===
+                descriptionToFind,
+            );
+            calculatedScore = selectedOption ? selectedOption.score : 0;
           }
           break;
         }
