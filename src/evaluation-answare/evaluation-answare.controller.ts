@@ -23,7 +23,17 @@ import { RolesGuard } from 'src/auth/roles.guard';
 import { PauseEvaluationAnswareDto } from './dto/pause-evaluation-answare.dto';
 import { UserType } from '@prisma/client';
 import type { FormScoreHistory } from './evaluation-answare.service';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
+@ApiTags('Respostas de Avaliações')
+@ApiBearerAuth('JWT-auth')
 @Controller('evaluation-answare')
 export class EvaluationAnswareController {
   constructor(
@@ -31,6 +41,18 @@ export class EvaluationAnswareController {
   ) {}
 
   @Post()
+  @ApiOperation({
+    summary: 'Cria/Inicia uma nova resposta de avaliação (Admin/Profissional)',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Resposta de avaliação iniciada com sucesso.',
+  })
+  @ApiResponse({ status: 401, description: 'Não autorizado.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Acesso negado (permissão de Admin/Profissional necessária).',
+  })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserType.ADMIN, UserType.TECH_PROFESSIONAL)
   create(@Body() createEvaluationAnswareDto: CreateEvaluationAnswareDto) {
@@ -38,6 +60,21 @@ export class EvaluationAnswareController {
   }
 
   @Patch(':id/add-form')
+  @ApiOperation({
+    summary:
+      'Adiciona respostas de um formulário a uma avaliação em andamento (Admin/Profissional)',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID da resposta da avaliação (EvaluationAnsware)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Respostas do formulário adicionadas com sucesso.',
+  })
+  @ApiResponse({ status: 401, description: 'Não autorizado.' })
+  @ApiResponse({ status: 403, description: 'Acesso negado.' })
+  @ApiResponse({ status: 404, description: 'Avaliação não encontrada.' })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserType.ADMIN, UserType.TECH_PROFESSIONAL)
   addFormAnsware(
@@ -48,6 +85,14 @@ export class EvaluationAnswareController {
   }
 
   @Patch(':id/pause')
+  @ApiOperation({
+    summary: 'Pausa uma avaliação em andamento (Admin/Profissional)',
+  })
+  @ApiParam({ name: 'id', description: 'ID da avaliação a ser pausada' })
+  @ApiResponse({ status: 200, description: 'Avaliação pausada com sucesso.' })
+  @ApiResponse({ status: 401, description: 'Não autorizado.' })
+  @ApiResponse({ status: 403, description: 'Acesso negado.' })
+  @ApiResponse({ status: 404, description: 'Avaliação não encontrada.' })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserType.ADMIN, UserType.TECH_PROFESSIONAL)
   pause(@Param('id') id: string, @Body() pauseDto: PauseEvaluationAnswareDto) {
@@ -55,6 +100,17 @@ export class EvaluationAnswareController {
   }
 
   @Patch(':id/complete')
+  @ApiOperation({
+    summary: 'Finaliza uma avaliação em andamento (Admin/Profissional)',
+  })
+  @ApiParam({ name: 'id', description: 'ID da avaliação a ser completada' })
+  @ApiResponse({
+    status: 200,
+    description: 'Avaliação completada com sucesso.',
+  })
+  @ApiResponse({ status: 401, description: 'Não autorizado.' })
+  @ApiResponse({ status: 403, description: 'Acesso negado.' })
+  @ApiResponse({ status: 404, description: 'Avaliação não encontrada.' })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserType.ADMIN, UserType.TECH_PROFESSIONAL)
   complete(
@@ -65,6 +121,20 @@ export class EvaluationAnswareController {
   }
 
   @Get()
+  @ApiOperation({
+    summary: 'Lista todas as respostas de avaliações (Admin/Profissional)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    description: 'Filtra as avaliações pelo nome ou CPF do idoso',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de respostas de avaliações retornada.',
+  })
+  @ApiResponse({ status: 401, description: 'Não autorizado.' })
+  @ApiResponse({ status: 403, description: 'Acesso negado.' })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserType.ADMIN, UserType.TECH_PROFESSIONAL)
   findAll(@Query('search') search?: string) {
@@ -72,6 +142,19 @@ export class EvaluationAnswareController {
   }
 
   @Get('my-evaluations/:elderlyId')
+  @ApiOperation({
+    summary: 'Busca as avaliações de um idoso (Apenas para o próprio idoso)',
+  })
+  @ApiParam({ name: 'elderlyId', description: 'ID do idoso' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de avaliações do idoso retornada.',
+  })
+  @ApiResponse({ status: 401, description: 'Não autorizado.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Acesso negado. Você só pode ver suas próprias avaliações.',
+  })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserType.USER)
   findMyEvaluationsByElderlyId(
@@ -97,6 +180,20 @@ export class EvaluationAnswareController {
   // }
 
   @Get('compare-form/:formId')
+  @ApiOperation({
+    summary:
+      'Compara a pontuação com a média geral para um formulário (Apenas Idoso)',
+  })
+  @ApiParam({ name: 'formId', description: 'ID do formulário a ser comparado' })
+  @ApiResponse({
+    status: 200,
+    description: 'Comparativo retornado com sucesso.',
+  })
+  @ApiResponse({ status: 401, description: 'Não autorizado.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Acesso negado. Somente idosos podem comparar resultados.',
+  })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserType.USER)
   compareFormScoreWithOthersAverage(
@@ -116,6 +213,18 @@ export class EvaluationAnswareController {
   }
 
   @Get('history-by-form-type/:elderlyId/:formId')
+  @ApiOperation({
+    summary:
+      'Busca o histórico de pontuação de um idoso para um tipo de formulário',
+  })
+  @ApiParam({ name: 'elderlyId', description: 'ID do idoso' })
+  @ApiParam({ name: 'formId', description: 'ID do formulário (tipo)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Histórico de pontuações retornado.',
+  })
+  @ApiResponse({ status: 401, description: 'Não autorizado.' })
+  @ApiResponse({ status: 403, description: 'Acesso negado.' })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserType.USER, UserType.ADMIN, UserType.TECH_PROFESSIONAL)
   async getElderlyFormScoresByType(
@@ -137,6 +246,14 @@ export class EvaluationAnswareController {
   }
 
   @Get('history/:elderlyId')
+  @ApiOperation({
+    summary:
+      'Busca o histórico de pontuações de todos os formulários para um idoso',
+  })
+  @ApiParam({ name: 'elderlyId', description: 'ID do idoso' })
+  @ApiResponse({ status: 200, description: 'Histórico completo retornado.' })
+  @ApiResponse({ status: 401, description: 'Não autorizado.' })
+  @ApiResponse({ status: 403, description: 'Acesso negado.' })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   getElderlyFormsScoresHistory(
     @Param('elderlyId') elderlyId: string,
@@ -156,6 +273,20 @@ export class EvaluationAnswareController {
   }
 
   @Get(':id')
+  @ApiOperation({
+    summary: 'Busca uma resposta de avaliação específica pelo ID',
+  })
+  @ApiParam({ name: 'id', description: 'ID da resposta da avaliação' })
+  @ApiResponse({
+    status: 200,
+    description: 'Dados da resposta da avaliação encontrados.',
+  })
+  @ApiResponse({ status: 401, description: 'Não autorizado.' })
+  @ApiResponse({ status: 403, description: 'Acesso negado.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Resposta de avaliação não encontrada.',
+  })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserType.ADMIN, UserType.TECH_PROFESSIONAL, UserType.USER)
   async findOne(@Param('id') id: string, @Request() req) {
@@ -174,6 +305,24 @@ export class EvaluationAnswareController {
   }
 
   @Delete(':id')
+  @ApiOperation({ summary: 'Remove uma resposta de avaliação (Apenas Admin)' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID da resposta da avaliação a ser removida',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Resposta de avaliação removida com sucesso.',
+  })
+  @ApiResponse({ status: 401, description: 'Não autorizado.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Acesso negado (permissão de Admin necessária).',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Resposta de avaliação não encontrada.',
+  })
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserType.ADMIN)
   remove(@Param('id') id: string) {
